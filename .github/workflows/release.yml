@@ -60,13 +60,21 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const { owner, repo } = context.repo;
-            await github.rest.actions.createWorkflowDispatch({
-              owner,
-              repo,
-              workflow_id: 'scheduled-assets-update.yml',
-              ref: context.ref
-            });
-            console.log('Triggered scheduled-assets-update.yml due to missing assets on branch:', context.ref);
+            try {
+              await github.rest.actions.createWorkflowDispatch({
+                owner,
+                repo,
+                workflow_id: 'scheduled-assets-update.yml',
+                ref: context.ref
+              });
+              console.log('Triggered scheduled-assets-update.yml due to missing assets on branch:', context.ref);
+            } catch (error) {
+              if (error.status === 422 && String(error.message || '').includes("disabled workflow")) {
+                console.log('scheduled-assets-update.yml is disabled; skipping dispatch and continuing build.');
+              } else {
+                throw error;
+              }
+            }
 
       - name: Sleep for 90 seconds if Assets Missing
         if: steps.check-assets.outputs.missing == 'true'

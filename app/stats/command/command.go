@@ -11,6 +11,7 @@ import (
 	"github.com/xtls/xray-core/common/strmatcher"
 	"github.com/xtls/xray-core/core"
 	feature_stats "github.com/xtls/xray-core/features/stats"
+	"github.com/xtls/xray-core/proxy/wireguard"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -31,21 +32,35 @@ func NewStatsServer(manager feature_stats.Manager) StatsServiceServer {
 
 func (s *statsServer) GetStats(ctx context.Context, request *GetStatsRequest) (*GetStatsResponse, error) {
 	c := s.stats.GetCounter(request.Name)
-	if c == nil {
-		return nil, status.Error(codes.NotFound, request.Name+" not found.")
+	if c != nil {
+		var value int64
+		if request.Reset_ {
+			value = c.Set(0)
+		} else {
+			value = c.Value()
+		}
+		return &GetStatsResponse{
+			Stat: &Stat{
+				Name:  request.Name,
+				Value: value,
+			},
+		}, nil
 	}
-	var value int64
-	if request.Reset_ {
-		value = c.Set(0)
-	} else {
-		value = c.Value()
+
+	stat, ok, err := wireguard.GetWireGuardStat(request.Name, request.Reset_)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
 	}
-	return &GetStatsResponse{
-		Stat: &Stat{
-			Name:  request.Name,
-			Value: value,
-		},
-	}, nil
+	if ok {
+		return &GetStatsResponse{
+			Stat: &Stat{
+				Name:  stat.Name,
+				Value: stat.Value,
+			},
+		}, nil
+	}
+
+	return nil, status.Error(codes.NotFound, request.Name+" not found.")
 }
 
 func (s *statsServer) GetStatsOnline(ctx context.Context, request *GetStatsRequest) (*GetStatsResponse, error) {
@@ -114,6 +129,17 @@ func (s *statsServer) QueryStats(ctx context.Context, request *QueryStatsRequest
 		}
 		return true
 	})
+
+	wgStats, err := wireguard.QueryWireGuardStats(request.Pattern, request.Reset_)
+	if err != nil {
+		return nil, err
+	}
+	for _, stat := range wgStats {
+		response.Stat = append(response.Stat, &Stat{
+			Name:  stat.Name,
+			Value: stat.Value,
+		})
+	}
 
 	return response, nil
 }

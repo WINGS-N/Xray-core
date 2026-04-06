@@ -39,13 +39,14 @@ type Tunnel interface {
 	BuildDevice(ipc string, bind conn.Bind) error
 	DialContextTCPAddrPort(ctx context.Context, addr netip.AddrPort) (net.Conn, error)
 	DialUDPAddrPort(laddr, raddr netip.AddrPort) (net.Conn, error)
+	PeerStats() ([]PeerStatSnapshot, error)
 	Close() error
 }
 
 type tunnel struct {
 	tun    tun.Device
 	device *device.Device
-	rw     sync.Mutex
+	rw     sync.RWMutex
 }
 
 func (t *tunnel) BuildDevice(ipc string, bind conn.Bind) (err error) {
@@ -94,6 +95,22 @@ func (t *tunnel) Close() (err error) {
 	err = t.tun.Close()
 	t.tun = nil
 	return nil
+}
+
+func (t *tunnel) PeerStats() ([]PeerStatSnapshot, error) {
+	t.rw.RLock()
+	defer t.rw.RUnlock()
+
+	if t.device == nil {
+		return nil, errors.New("device is not initialized")
+	}
+
+	raw, err := t.device.IpcGet()
+	if err != nil {
+		return nil, err
+	}
+
+	return parsePeerStatsIPC(raw)
 }
 
 func CalculateInterfaceName(name string) (tunName string) {

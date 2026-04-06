@@ -2,6 +2,7 @@ package wireguard
 
 import (
 	"context"
+	"sync"
 
 	"github.com/xtls/xray-core/common/buf"
 	c "github.com/xtls/xray-core/common/ctx"
@@ -21,9 +22,13 @@ var nullDestination = net.TCPDestination(net.AnyIP, 0)
 
 type Server struct {
 	bindServer *netBindServer
+	tun        Tunnel
+	tag        string
 
 	info          routingInfo
 	policyManager policy.Manager
+	closeOnce     sync.Once
+	closeErr      error
 }
 
 type routingInfo struct {
@@ -35,6 +40,10 @@ type routingInfo struct {
 
 func NewServer(ctx context.Context, conf *DeviceConfig) (*Server, error) {
 	v := core.MustFromContext(ctx)
+	tag := ""
+	if inbound := session.InboundFromContext(ctx); inbound != nil {
+		tag = inbound.Tag
+	}
 
 	endpoints, hasIPv4, hasIPv6, err := parseEndpoints(conf)
 	if err != nil {
@@ -54,6 +63,7 @@ func NewServer(ctx context.Context, conf *DeviceConfig) (*Server, error) {
 			},
 		},
 		policyManager: v.GetFeature(policy.ManagerType()).(policy.Manager),
+		tag:           tag,
 	}
 
 	tun, err := conf.createTun()(endpoints, int(conf.Mtu), server.forwardConnection)
@@ -66,7 +76,35 @@ func NewServer(ctx context.Context, conf *DeviceConfig) (*Server, error) {
 		return nil, err
 	}
 
+	server.tun = tun
+	registerPeerStatsProvider(server.tag, server)
+
 	return server, nil
+}
+
+func (s *Server) PeerStats() ([]PeerStatSnapshot, error) {
+	if s.tun == nil {
+		return nil, errors.New("wireguard tunnel is not initialized")
+	}
+	return s.tun.PeerStats()
+}
+
+func (s *Server) Close() error {
+	s.closeOnce.Do(func() {
+		unregisterPeerStatsProvider(s.tag, s)
+
+		var errs []error
+		if s.bindServer != nil {
+			errs = append(errs, s.bindServer.Close())
+		}
+		if s.tun != nil {
+			errs = append(errs, s.tun.Close())
+			s.tun = nil
+		}
+		s.closeErr = errors.Combine(errs...)
+	})
+
+	return s.closeErr
 }
 
 // Network implements proxy.Inbound.

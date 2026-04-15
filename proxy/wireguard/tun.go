@@ -209,8 +209,7 @@ func createGVisorTun(localAddresses []netip.Addr, mtu int, handler promiscuousMo
 			srcIP := net.IPAddress(id.RemoteAddress.AsSlice())
 			dstIP := net.IPAddress(id.LocalAddress.AsSlice())
 			if srcIP == nil || dstIP == nil {
-				errors.LogDebug(context.Background(), "drop udp with size ", len(data), " > invalid ip address ", id.RemoteAddress.AsSlice(), " ", id.LocalAddress.AsSlice())
-				return true
+				panic(id)
 			}
 			src := net.UDPDestination(srcIP, net.Port(id.RemotePort))
 			dst := net.UDPDestination(dstIP, net.Port(id.LocalPort))
@@ -273,7 +272,7 @@ func (m *udpManager) feed(src net.Destination, dst net.Destination, data []byte)
 		dest: &dst,
 	}:
 	default:
-		errors.LogDebug(context.Background(), "drop udp with size ", len(data), " to ", dst.NetAddr(), " original ", uc.dst.NetAddr(), " > queue full")
+		errors.LogDebug(context.Background(), "drop udp with size ", len(data), " to ", dst.NetAddr(), " original ", uc.dst.NetAddr(), " > queue full 2")
 	}
 }
 
@@ -363,25 +362,19 @@ type udpConn struct {
 }
 
 func (c *udpConn) ReadMultiBuffer() (buf.MultiBuffer, error) {
-	for {
-		q, ok := <-c.queue
-		if !ok {
-			return nil, io.EOF
-		}
-
-		b := buf.New()
-
-		_, err := b.Write(q.p)
-		if err != nil {
-			errors.LogDebugInner(context.Background(), err, "drop udp with size ", len(q.p), " to ", q.dest.NetAddr(), " original ", c.dst.NetAddr())
-			b.Release()
-			continue
-		}
-
-		b.UDP = q.dest
-
-		return buf.MultiBuffer{b}, nil
+	q, ok := <-c.queue
+	if !ok {
+		return nil, io.EOF
 	}
+
+	b := buf.New()
+	if _, err := b.Write(q.p); err != nil {
+		return nil, err
+	}
+
+	b.UDP = q.dest
+
+	return buf.MultiBuffer{b}, nil
 }
 
 func (c *udpConn) Read(p []byte) (int, error) {

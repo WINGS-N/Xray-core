@@ -90,9 +90,25 @@ func (t *Handler) Init(ctx context.Context, pm policy.Manager, dispatcher routin
 
 	errors.LogInfo(t.ctx, tunName, " created")
 
+	var excluded map[uint32]struct{}
+	if len(t.config.ExcludedUids) > 0 {
+		excluded = make(map[uint32]struct{}, len(t.config.ExcludedUids))
+		for _, uid := range t.config.ExcludedUids {
+			excluded[uid] = struct{}{}
+		}
+	}
+	var allowed map[uint32]struct{}
+	if len(t.config.AllowedUids) > 0 {
+		allowed = make(map[uint32]struct{}, len(t.config.AllowedUids))
+		for _, uid := range t.config.AllowedUids {
+			allowed[uid] = struct{}{}
+		}
+	}
 	tunStackOptions := StackOptions{
-		Tun:         tunInterface,
-		IdleTimeout: pm.ForLevel(t.config.UserLevel).Timeouts.ConnectionIdle,
+		Tun:          tunInterface,
+		IdleTimeout:  pm.ForLevel(t.config.UserLevel).Timeouts.ConnectionIdle,
+		ExcludedUIDs: excluded,
+		AllowedUIDs:  allowed,
 	}
 	tunStack, err := NewStack(t.ctx, tunStackOptions, t)
 	if err != nil {

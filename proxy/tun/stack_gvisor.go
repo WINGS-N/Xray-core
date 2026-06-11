@@ -2,6 +2,7 @@ package tun
 
 import (
 	"context"
+	"net/netip"
 	"time"
 
 	"github.com/xtls/xray-core/common/errors"
@@ -34,24 +35,61 @@ const (
 
 // stackGVisor is ip stack implemented by gVisor package
 type stackGVisor struct {
-	ctx         context.Context
-	tun         Tun
-	idleTimeout time.Duration
-	handler     *Handler
-	stack       *stack.Stack
-	endpoint    stack.LinkEndpoint
+	ctx          context.Context
+	tun          Tun
+	idleTimeout  time.Duration
+	handler      *Handler
+	stack        *stack.Stack
+	endpoint     stack.LinkEndpoint
+	excludedUIDs map[uint32]struct{}
+	allowedUIDs  map[uint32]struct{}
 }
 
 // NewStack builds new ip stack (using gVisor)
 func NewStack(ctx context.Context, options StackOptions, handler *Handler) (Stack, error) {
 	gStack := &stackGVisor{
-		ctx:         ctx,
-		tun:         options.Tun,
-		idleTimeout: options.IdleTimeout,
-		handler:     handler,
+		ctx:          ctx,
+		tun:          options.Tun,
+		idleTimeout:  options.IdleTimeout,
+		handler:      handler,
+		excludedUIDs: options.ExcludedUIDs,
+		allowedUIDs:  options.AllowedUIDs,
 	}
 
 	return gStack, nil
+}
+
+// isFilteredSource returns true when the packet's source 4-tuple belongs to a
+// UID that is either explicitly excluded or, when an allowlist is configured,
+// not present in it. srcAddr/srcPort describe the TUN-side (app's local)
+// endpoint; dstAddr/dstPort describe the gVisor-side (app's remote) endpoint.
+// Returns false on empty filters or when the UID cannot be looked up, so that
+// a transient /proc/net miss never silently drops a legitimate connection.
+func (t *stackGVisor) isFilteredSource(srcAddr tcpip.Address, srcPort uint16, dstAddr tcpip.Address, dstPort uint16) bool {
+	if len(t.excludedUIDs) == 0 && len(t.allowedUIDs) == 0 {
+		return false
+	}
+	src, ok := netip.AddrFromSlice(srcAddr.AsSlice())
+	if !ok {
+		return false
+	}
+	dst, ok := netip.AddrFromSlice(dstAddr.AsSlice())
+	if !ok {
+		return false
+	}
+	uid := lookupConnectionUID(src.Unmap(), srcPort, dst.Unmap(), dstPort)
+	if uid < 0 {
+		return false
+	}
+	if _, blocked := t.excludedUIDs[uint32(uid)]; blocked {
+		return true
+	}
+	if len(t.allowedUIDs) > 0 {
+		if _, allowed := t.allowedUIDs[uint32(uid)]; !allowed {
+			return true
+		}
+	}
+	return false
 }
 
 // Start is called by Handler to bring stack to life
@@ -70,6 +108,14 @@ func (t *stackGVisor) Start() error {
 		go func(r *tcp.ForwarderRequest) {
 			var wq waiter.Queue
 			var id = r.ID()
+
+			if t.isFilteredSource(id.RemoteAddress, id.RemotePort, id.LocalAddress, id.LocalPort) {
+				// Drop the SYN by completing the request with rst=true. The app
+				// sees a RST and retries via its real interface, which is the
+				// expected behavior for an excluded UID.
+				r.Complete(true)
+				return
+			}
 
 			// Perform a TCP three-way handshake.
 			ep, err := r.CreateEndpoint(&wq)
@@ -101,6 +147,12 @@ func (t *stackGVisor) Start() error {
 	// Use custom UDP packet handler, instead of strict gVisor forwarder, for FullCone NAT support
 	udpForwarder := newUdpConnectionHandler(t.handler.HandleConnection, t.writeRawUDPPacket)
 	ipStack.SetTransportProtocolHandler(udp.ProtocolNumber, func(id stack.TransportEndpointID, pkt *stack.PacketBuffer) bool {
+		if t.isFilteredSource(id.RemoteAddress, id.RemotePort, id.LocalAddress, id.LocalPort) {
+			// Mark the packet as consumed so gVisor does not respond with an
+			// ICMP unreachable; the excluded app simply gets no answer through
+			// the tun and falls back to its real interface.
+			return true
+		}
 		data := pkt.Clone().Data().AsRange().ToSlice()
 		// if len(data) == 0 {
 		// 	return false

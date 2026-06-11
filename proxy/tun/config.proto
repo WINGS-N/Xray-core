@@ -14,4 +14,15 @@ message Config {
   uint32 user_level = 5;
   repeated string auto_system_routing_table = 6;
   string auto_outbounds_interface = 7;
+  // UIDs that must not be tunneled. Connections arriving at the TUN with a
+  // source UID present in this list are dropped before any dispatch.
+  // Used by Android VpnService to enforce per-app bypass at the gVisor level,
+  // since Android's addDisallowedApplication only steers routing and does not
+  // prevent excluded apps from binding to the TUN interface directly.
+  repeated uint32 excluded_uids = 8;
+  // When non-empty, only connections whose source UID appears in this list
+  // are allowed; everyone else is dropped. Mirrors Android's allowlist
+  // VpnService.Builder mode and acts as the secondary filter at the gVisor
+  // level. excluded_uids still takes precedence over allowed_uids.
+  repeated uint32 allowed_uids = 9;
 }

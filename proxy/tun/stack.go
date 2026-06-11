@@ -14,4 +14,13 @@ type Stack interface {
 type StackOptions struct {
 	Tun         Tun
 	IdleTimeout time.Duration
+	// ExcludedUIDs is the set of Android UIDs whose new TCP/UDP connections
+	// must be dropped before being dispatched. nil means no exclusion.
+	// Membership is checked at connection setup time via /proc/net/* lookup
+	// of the packet's source 4-tuple.
+	ExcludedUIDs map[uint32]struct{}
+	// AllowedUIDs, when non-empty, restricts the tunnel to those UIDs only;
+	// any other UID is dropped. nil/empty means no allowlist gating.
+	// ExcludedUIDs is checked first and takes precedence.
+	AllowedUIDs map[uint32]struct{}
 }

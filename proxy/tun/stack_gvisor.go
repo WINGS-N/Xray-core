@@ -107,7 +107,7 @@ func (t *stackGVisor) Start() error {
 	tcpForwarder := tcp.NewForwarder(ipStack, 0, 65535, func(r *tcp.ForwarderRequest) {
 		go func(r *tcp.ForwarderRequest) {
 			var wq waiter.Queue
-			var id = r.ID()
+			id := r.ID()
 
 			if t.isFilteredSource(id.RemoteAddress, id.RemotePort, id.LocalAddress, id.LocalPort) {
 				// Drop the SYN by completing the request with rst=true. The app

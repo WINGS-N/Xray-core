@@ -15,6 +15,7 @@ type TunConfig struct {
 	AutoOutboundsInterface *string  `json:"autoOutboundsInterface"`
 	ExcludedUIDs           []uint32 `json:"excludedUids"`
 	AllowedUIDs            []uint32 `json:"allowedUids"`
+	UIDLookupTimeoutMs     uint32   `json:"uidLookupTimeoutMs"`
 }
 
 func (v *TunConfig) Build() (proto.Message, error) {
@@ -27,6 +28,7 @@ func (v *TunConfig) Build() (proto.Message, error) {
 		AutoSystemRoutingTable: v.AutoSystemRoutingTable,
 		ExcludedUids:           v.ExcludedUIDs,
 		AllowedUids:            v.AllowedUIDs,
+		UidLookupTimeoutMs:     v.UIDLookupTimeoutMs,
 	}
 	if v.AutoOutboundsInterface != nil {
 		config.AutoOutboundsInterface = *v.AutoOutboundsInterface

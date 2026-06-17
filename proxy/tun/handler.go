@@ -3,6 +3,7 @@ package tun
 import (
 	"context"
 	"syscall"
+	"time"
 
 	"github.com/xtls/xray-core/common"
 	"github.com/xtls/xray-core/common/buf"
@@ -105,10 +106,11 @@ func (t *Handler) Init(ctx context.Context, pm policy.Manager, dispatcher routin
 		}
 	}
 	tunStackOptions := StackOptions{
-		Tun:          tunInterface,
-		IdleTimeout:  pm.ForLevel(t.config.UserLevel).Timeouts.ConnectionIdle,
-		ExcludedUIDs: excluded,
-		AllowedUIDs:  allowed,
+		Tun:              tunInterface,
+		IdleTimeout:      pm.ForLevel(t.config.UserLevel).Timeouts.ConnectionIdle,
+		ExcludedUIDs:     excluded,
+		AllowedUIDs:      allowed,
+		UIDLookupTimeout: time.Duration(t.config.UidLookupTimeoutMs) * time.Millisecond,
 	}
 	tunStack, err := NewStack(t.ctx, tunStackOptions, t)
 	if err != nil {

@@ -23,4 +23,10 @@ type StackOptions struct {
 	// any other UID is dropped. nil/empty means no allowlist gating.
 	// ExcludedUIDs is checked first and takes precedence.
 	AllowedUIDs map[uint32]struct{}
+	// UIDLookupTimeout is the grace window for retrying the /proc/net UID
+	// lookup when the first probe misses. New sockets that the kernel has
+	// not yet published in /proc/net/tcp* (Tor / SSH opening multiple
+	// sockets per second) would otherwise be dropped by the per-app filter.
+	// Zero disables retries entirely; a single lookup is always performed.
+	UIDLookupTimeout time.Duration
 }

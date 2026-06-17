@@ -41,19 +41,21 @@ type stackGVisor struct {
 	handler      *Handler
 	stack        *stack.Stack
 	endpoint     stack.LinkEndpoint
-	excludedUIDs map[uint32]struct{}
-	allowedUIDs  map[uint32]struct{}
+	excludedUIDs     map[uint32]struct{}
+	allowedUIDs      map[uint32]struct{}
+	uidLookupTimeout time.Duration
 }
 
 // NewStack builds new ip stack (using gVisor)
 func NewStack(ctx context.Context, options StackOptions, handler *Handler) (Stack, error) {
 	gStack := &stackGVisor{
-		ctx:          ctx,
-		tun:          options.Tun,
-		idleTimeout:  options.IdleTimeout,
-		handler:      handler,
-		excludedUIDs: options.ExcludedUIDs,
-		allowedUIDs:  options.AllowedUIDs,
+		ctx:              ctx,
+		tun:              options.Tun,
+		idleTimeout:      options.IdleTimeout,
+		handler:          handler,
+		excludedUIDs:     options.ExcludedUIDs,
+		allowedUIDs:      options.AllowedUIDs,
+		uidLookupTimeout: options.UIDLookupTimeout,
 	}
 
 	return gStack, nil
@@ -63,8 +65,14 @@ func NewStack(ctx context.Context, options StackOptions, handler *Handler) (Stac
 // UID that is either explicitly excluded or, when an allowlist is configured,
 // not present in it. srcAddr/srcPort describe the TUN-side (app's local)
 // endpoint; dstAddr/dstPort describe the gVisor-side (app's remote) endpoint.
-// Returns false on empty filters or when the UID cannot be looked up, so that
-// a transient /proc/net miss never silently drops a legitimate connection.
+// Returns false on empty filters or when the UID cannot be looked up after
+// the lookup retry window expires — Android's SELinux policy hides other
+// apps' /proc/net/tcp* entries from the calling process unless it runs as
+// root, so a strict drop on uid<0 would kill the entire tunnel under an
+// unprivileged VpnService. The retry pass (uidLookupTimeout) is kept so
+// that on platforms where the lookup does work (root TPROXY mode) it can
+// absorb the /proc/net publication race for apps that open sockets in
+// rapid succession.
 func (t *stackGVisor) isFilteredSource(srcAddr tcpip.Address, srcPort uint16, dstAddr tcpip.Address, dstPort uint16) bool {
 	if len(t.excludedUIDs) == 0 && len(t.allowedUIDs) == 0 {
 		return false
@@ -77,7 +85,7 @@ func (t *stackGVisor) isFilteredSource(srcAddr tcpip.Address, srcPort uint16, ds
 	if !ok {
 		return false
 	}
-	uid := lookupConnectionUID(src.Unmap(), srcPort, dst.Unmap(), dstPort)
+	uid := t.lookupUIDWithRetry(src.Unmap(), srcPort, dst.Unmap(), dstPort)
 	if uid < 0 {
 		return false
 	}
@@ -90,6 +98,31 @@ func (t *stackGVisor) isFilteredSource(srcAddr tcpip.Address, srcPort uint16, ds
 		}
 	}
 	return false
+}
+
+const uidLookupRetryInterval = 5 * time.Millisecond
+
+func (t *stackGVisor) lookupUIDWithRetry(srcAddr netip.Addr, srcPort uint16, dstAddr netip.Addr, dstPort uint16) int32 {
+	uid := lookupConnectionUID(srcAddr, srcPort, dstAddr, dstPort)
+	if uid >= 0 || t.uidLookupTimeout <= 0 {
+		return uid
+	}
+	deadline := time.Now().Add(t.uidLookupTimeout)
+	for {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			return uid
+		}
+		sleepFor := uidLookupRetryInterval
+		if sleepFor > remaining {
+			sleepFor = remaining
+		}
+		time.Sleep(sleepFor)
+		uid = lookupConnectionUID(srcAddr, srcPort, dstAddr, dstPort)
+		if uid >= 0 {
+			return uid
+		}
+	}
 }
 
 // Start is called by Handler to bring stack to life

@@ -25,4 +25,14 @@ message Config {
   // VpnService.Builder mode and acts as the secondary filter at the gVisor
   // level. excluded_uids still takes precedence over allowed_uids.
   repeated uint32 allowed_uids = 9;
+  // Grace window in milliseconds for retrying the /proc/net UID lookup when
+  // the first probe returns no match. Race: apps that open many sockets in
+  // rapid succession (e.g. Tor pulling several guards at once) send the SYN
+  // through the TUN before the kernel finishes publishing the socket in
+  // /proc/net/tcp*, so the first lookup misses and a strict filter would
+  // drop legitimate traffic. With this set, the stack polls the /proc table
+  // every ~5 ms until the UID resolves or the timeout elapses, then applies
+  // the filter on the final result. 0 disables retries entirely; the
+  // initial lookup is always performed.
+  uint32 uid_lookup_timeout_ms = 10;
 }

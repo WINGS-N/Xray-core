@@ -3,6 +3,7 @@ package tun
 import (
 	"context"
 	"net/netip"
+	"syscall"
 	"time"
 
 	"github.com/xtls/xray-core/common/errors"
@@ -43,6 +44,9 @@ type stackGVisor struct {
 	endpoint     stack.LinkEndpoint
 	excludedUIDs     map[uint32]struct{}
 	allowedUIDs      map[uint32]struct{}
+	bypassUIDs       map[uint32]struct{}
+	bypassInboundTag string
+	bypassUnknownUID bool
 	uidLookupTimeout time.Duration
 }
 
@@ -55,6 +59,9 @@ func NewStack(ctx context.Context, options StackOptions, handler *Handler) (Stac
 		handler:          handler,
 		excludedUIDs:     options.ExcludedUIDs,
 		allowedUIDs:      options.AllowedUIDs,
+		bypassUIDs:       options.BypassUIDs,
+		bypassInboundTag: options.BypassInboundTag,
+		bypassUnknownUID: options.BypassUnknownUID,
 		uidLookupTimeout: options.UIDLookupTimeout,
 	}
 
@@ -73,37 +80,58 @@ func NewStack(ctx context.Context, options StackOptions, handler *Handler) (Stac
 // that on platforms where the lookup does work (root TPROXY mode) it can
 // absorb the /proc/net publication race for apps that open sockets in
 // rapid succession.
-func (t *stackGVisor) isFilteredSource(srcAddr tcpip.Address, srcPort uint16, dstAddr tcpip.Address, dstPort uint16) bool {
-	if len(t.excludedUIDs) == 0 && len(t.allowedUIDs) == 0 {
-		return false
+// uidDecision holds the outcome of the per-connection UID lookup. drop=true
+// means the gVisor stack should silently refuse the connection (RST for TCP,
+// no reply for UDP). When drop=false the returned tag is the inbound Tag to
+// pass downstream; empty means "use the handler's default tag".
+type uidDecision struct {
+	drop bool
+	tag  string
+}
+
+func (t *stackGVisor) resolveUIDDecision(protocol int, srcAddr tcpip.Address, srcPort uint16, dstAddr tcpip.Address, dstPort uint16) uidDecision {
+	if len(t.excludedUIDs) == 0 && len(t.allowedUIDs) == 0 && len(t.bypassUIDs) == 0 {
+		return uidDecision{}
 	}
 	src, ok := netip.AddrFromSlice(srcAddr.AsSlice())
 	if !ok {
-		return false
+		return uidDecision{}
 	}
 	dst, ok := netip.AddrFromSlice(dstAddr.AsSlice())
 	if !ok {
-		return false
+		return uidDecision{}
 	}
-	uid := t.lookupUIDWithRetry(src.Unmap(), srcPort, dst.Unmap(), dstPort)
+	uid := t.lookupUIDWithRetry(protocol, src.Unmap(), srcPort, dst.Unmap(), dstPort)
 	if uid < 0 {
-		return false
+		// Unknown UID: Android's getConnectionOwnerUid did not see this
+		// connection (typically a SO_BINDTODEVICE leaker like `curl
+		// --interface tun0` that skipped per-app VPN tracking). When the
+		// caller opted into BypassUnknownUID, treat these as bypass too.
+		if t.bypassUnknownUID && t.bypassInboundTag != "" {
+			return uidDecision{tag: t.bypassInboundTag}
+		}
+		return uidDecision{}
 	}
 	if _, blocked := t.excludedUIDs[uint32(uid)]; blocked {
-		return true
+		return uidDecision{drop: true}
 	}
 	if len(t.allowedUIDs) > 0 {
 		if _, allowed := t.allowedUIDs[uint32(uid)]; !allowed {
-			return true
+			return uidDecision{drop: true}
 		}
 	}
-	return false
+	if len(t.bypassUIDs) > 0 {
+		if _, bypass := t.bypassUIDs[uint32(uid)]; bypass {
+			return uidDecision{tag: t.bypassInboundTag}
+		}
+	}
+	return uidDecision{}
 }
 
 const uidLookupRetryInterval = 5 * time.Millisecond
 
-func (t *stackGVisor) lookupUIDWithRetry(srcAddr netip.Addr, srcPort uint16, dstAddr netip.Addr, dstPort uint16) int32 {
-	uid := lookupConnectionUID(srcAddr, srcPort, dstAddr, dstPort)
+func (t *stackGVisor) lookupUIDWithRetry(protocol int, srcAddr netip.Addr, srcPort uint16, dstAddr netip.Addr, dstPort uint16) int32 {
+	uid := lookupConnectionUID(protocol, srcAddr, srcPort, dstAddr, dstPort)
 	if uid >= 0 || t.uidLookupTimeout <= 0 {
 		return uid
 	}
@@ -118,7 +146,7 @@ func (t *stackGVisor) lookupUIDWithRetry(srcAddr netip.Addr, srcPort uint16, dst
 			sleepFor = remaining
 		}
 		time.Sleep(sleepFor)
-		uid = lookupConnectionUID(srcAddr, srcPort, dstAddr, dstPort)
+		uid = lookupConnectionUID(protocol, srcAddr, srcPort, dstAddr, dstPort)
 		if uid >= 0 {
 			return uid
 		}
@@ -142,7 +170,8 @@ func (t *stackGVisor) Start() error {
 			var wq waiter.Queue
 			id := r.ID()
 
-			if t.isFilteredSource(id.RemoteAddress, id.RemotePort, id.LocalAddress, id.LocalPort) {
+			decision := t.resolveUIDDecision(syscall.IPPROTO_TCP, id.RemoteAddress, id.RemotePort, id.LocalAddress, id.LocalPort)
+			if decision.drop {
 				// Drop the SYN by completing the request with rst=true. The app
 				// sees a RST and retries via its real interface, which is the
 				// expected behavior for an excluded UID.
@@ -167,6 +196,7 @@ func (t *stackGVisor) Start() error {
 				gonet.NewTCPConn(&wq, ep),
 				// local address on the gVisor side is connection destination
 				net.TCPDestination(net.IPAddress(id.LocalAddress.AsSlice()), net.Port(id.LocalPort)),
+				decision.tag,
 			)
 
 			// close the socket
@@ -180,7 +210,8 @@ func (t *stackGVisor) Start() error {
 	// Use custom UDP packet handler, instead of strict gVisor forwarder, for FullCone NAT support
 	udpForwarder := newUdpConnectionHandler(t.handler.HandleConnection, t.writeRawUDPPacket)
 	ipStack.SetTransportProtocolHandler(udp.ProtocolNumber, func(id stack.TransportEndpointID, pkt *stack.PacketBuffer) bool {
-		if t.isFilteredSource(id.RemoteAddress, id.RemotePort, id.LocalAddress, id.LocalPort) {
+		decision := t.resolveUIDDecision(syscall.IPPROTO_UDP, id.RemoteAddress, id.RemotePort, id.LocalAddress, id.LocalPort)
+		if decision.drop {
 			// Mark the packet as consumed so gVisor does not respond with an
 			// ICMP unreachable; the excluded app simply gets no answer through
 			// the tun and falls back to its real interface.
@@ -200,7 +231,7 @@ func (t *stackGVisor) Start() error {
 		}
 		src := net.UDPDestination(srcIP, net.Port(id.RemotePort))
 		dst := net.UDPDestination(dstIP, net.Port(id.LocalPort))
-		udpForwarder.HandlePacket(src, dst, data)
+		udpForwarder.HandlePacket(src, dst, data, decision.tag)
 		return true
 	})
 	ipStack.SetTransportProtocolHandler(icmp.ProtocolNumber4, t.handleICMPv4Packet)

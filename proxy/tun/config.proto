@@ -35,4 +35,25 @@ message Config {
   // the filter on the final result. 0 disables retries entirely; the
   // initial lookup is always performed.
   uint32 uid_lookup_timeout_ms = 10;
+  // UIDs whose connections are dispatched with bypass_inbound_tag instead of
+  // the default TUN inbound tag, so routing can divert them to a freedom /
+  // direct outbound and keep them off the VPN. Used by Android non-root path:
+  // VpnService runs without addDisallowedApplication so all apps' traffic is
+  // visible to ConnectivityManager.getConnectionOwnerUid, then bypass UIDs
+  // get silently redirected to the underlying network at gVisor level,
+  // transparently to the app, instead of being dropped outright.
+  repeated uint32 bypass_uids = 11;
+  // Inbound tag the gVisor stack stamps on connections whose source UID
+  // matched bypass_uids. Empty disables the bypass redirect, matching default
+  // behaviour even when bypass_uids is populated (diagnostic-only mode).
+  string bypass_inbound_tag = 12;
+  // When true and bypass_inbound_tag is non-empty, connections whose source
+  // UID cannot be resolved (typically because the app bound the socket
+  // directly to the TUN interface via SO_BINDTODEVICE or an explicit source
+  // IP, side-stepping Android's per-app VPN tracker so getConnectionOwnerUid
+  // returns INVALID_UID) are also stamped with bypass_inbound_tag instead of
+  // the default tag. Closes the deliberate-leak path for tools like
+  // `curl --interface tun0` at the cost of routing every untracked
+  // connection through the direct outbound.
+  bool bypass_unknown_uid = 13;
 }

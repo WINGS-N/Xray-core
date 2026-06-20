@@ -22,11 +22,11 @@ type udpConnectionHandler struct {
 
 	udpConns map[net.Destination]*udpConn
 
-	handleConnection func(conn net.Conn, dest net.Destination)
+	handleConnection func(conn net.Conn, dest net.Destination, inboundTagOverride string)
 	writePacket      func(data []byte, src net.Destination, dst net.Destination) error
 }
 
-func newUdpConnectionHandler(handleConnection func(conn net.Conn, dest net.Destination), writePacket func(data []byte, src net.Destination, dst net.Destination) error) *udpConnectionHandler {
+func newUdpConnectionHandler(handleConnection func(conn net.Conn, dest net.Destination, inboundTagOverride string), writePacket func(data []byte, src net.Destination, dst net.Destination) error) *udpConnectionHandler {
 	handler := &udpConnectionHandler{
 		udpConns:         make(map[net.Destination]*udpConn),
 		handleConnection: handleConnection,
@@ -37,8 +37,10 @@ func newUdpConnectionHandler(handleConnection func(conn net.Conn, dest net.Desti
 }
 
 // HandlePacket handles UDP packets coming from tun, to forward to the dispatcher
-// this custom handler support FullCone NAT of returning packets, binding connection only by the source addr:port
-func (u *udpConnectionHandler) HandlePacket(src net.Destination, dst net.Destination, data []byte) {
+// this custom handler support FullCone NAT of returning packets, binding connection only by the source addr:port.
+// inboundTagOverride is forwarded to handleConnection when a NEW conn is spawned;
+// subsequent packets on the same src reuse the existing conn (and thus its tag).
+func (u *udpConnectionHandler) HandlePacket(src net.Destination, dst net.Destination, data []byte, inboundTagOverride string) {
 	u.RLock()
 	conn, found := u.udpConns[src]
 	if found {
@@ -64,7 +66,7 @@ func (u *udpConnectionHandler) HandlePacket(src net.Destination, dst net.Destina
 		conn = &udpConn{handler: u, egress: egress, src: src, dst: dst}
 		u.udpConns[src] = conn
 
-		go u.handleConnection(conn, dst)
+		go u.handleConnection(conn, dst, inboundTagOverride)
 	}
 
 	// send packet data to the egress channel, if it has buffer, or discard

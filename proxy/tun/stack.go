@@ -29,4 +29,22 @@ type StackOptions struct {
 	// sockets per second) would otherwise be dropped by the per-app filter.
 	// Zero disables retries entirely; a single lookup is always performed.
 	UIDLookupTimeout time.Duration
+	// BypassUIDs holds UIDs whose connections are dispatched with
+	// BypassInboundTag instead of the regular tun inbound tag. The routing
+	// engine can then steer them to a freedom/direct outbound, which is the
+	// non-root Android leak fix: keep the per-app VPN routing wide open so
+	// ConnectivityManager.getConnectionOwnerUid can observe these apps, then
+	// redirect them back to the underlying network at gVisor level.
+	BypassUIDs map[uint32]struct{}
+	// BypassInboundTag overrides the inbound Tag passed downstream when the
+	// connection's source UID is in BypassUIDs. Empty means no override even
+	// if BypassUIDs is set; the lookup is performed but the tag stays the
+	// default, which is a useful diagnostic-only mode.
+	BypassInboundTag string
+	// BypassUnknownUID extends the bypass redirect to connections whose UID
+	// resolution returned <0 (Android's getConnectionOwnerUid returns
+	// INVALID_UID for sockets that bound directly to the TUN address and
+	// thus skipped per-app VPN tracking). Effective only when
+	// BypassInboundTag is set.
+	BypassUnknownUID bool
 }

@@ -33,9 +33,12 @@ type Handler struct {
 	sniffingRequest session.SniffingRequest
 }
 
-// ConnectionHandler interface with the only method that stack is going to push new connections to
+// ConnectionHandler interface with the only method that stack is going to push new connections to.
+// inboundTagOverride lets the stack request a non-default inbound Tag for this
+// single connection (e.g. to route bypass-app traffic to a different outbound).
+// Empty means use the handler's default tag, matching legacy behaviour.
 type ConnectionHandler interface {
-	HandleConnection(conn net.Conn, destination net.Destination)
+	HandleConnection(conn net.Conn, destination net.Destination, inboundTagOverride string)
 }
 
 // Handler implements ConnectionHandler
@@ -105,11 +108,21 @@ func (t *Handler) Init(ctx context.Context, pm policy.Manager, dispatcher routin
 			allowed[uid] = struct{}{}
 		}
 	}
+	var bypass map[uint32]struct{}
+	if len(t.config.BypassUids) > 0 {
+		bypass = make(map[uint32]struct{}, len(t.config.BypassUids))
+		for _, uid := range t.config.BypassUids {
+			bypass[uid] = struct{}{}
+		}
+	}
 	tunStackOptions := StackOptions{
 		Tun:              tunInterface,
 		IdleTimeout:      pm.ForLevel(t.config.UserLevel).Timeouts.ConnectionIdle,
 		ExcludedUIDs:     excluded,
 		AllowedUIDs:      allowed,
+		BypassUIDs:       bypass,
+		BypassInboundTag: t.config.BypassInboundTag,
+		BypassUnknownUID: t.config.BypassUnknownUid,
 		UIDLookupTimeout: time.Duration(t.config.UidLookupTimeoutMs) * time.Millisecond,
 	}
 	tunStack, err := NewStack(t.ctx, tunStackOptions, t)
@@ -140,7 +153,7 @@ func (t *Handler) Init(ctx context.Context, pm policy.Manager, dispatcher routin
 }
 
 // HandleConnection pass the connection coming from the ip stack to the routing dispatcher
-func (t *Handler) HandleConnection(conn net.Conn, destination net.Destination) {
+func (t *Handler) HandleConnection(conn net.Conn, destination net.Destination, inboundTagOverride string) {
 	// when handling is done with any outcome, always signal back to the incoming connection
 	// to close, send completion packets back to the network, and cleanup
 	defer conn.Close()
@@ -150,9 +163,13 @@ func (t *Handler) HandleConnection(conn net.Conn, destination net.Destination) {
 	ctx = c.ContextWithID(ctx, session.NewID())
 
 	source := net.DestinationFromAddr(conn.RemoteAddr())
+	tag := t.tag
+	if inboundTagOverride != "" {
+		tag = inboundTagOverride
+	}
 	inbound := session.Inbound{
 		Name:          "tun",
-		Tag:           t.tag,
+		Tag:           tag,
 		CanSpliceCopy: 3,
 		Source:        source,
 		User: &protocol.MemoryUser{

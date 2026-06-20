@@ -8,6 +8,6 @@ import "net/netip"
 // filter only makes sense on Android where the gVisor stack sits behind the
 // kernel TUN driver and can be re-entered by apps that side-step Android's
 // addDisallowedApplication routing rules.
-func lookupConnectionUID(_ netip.Addr, _ uint16, _ netip.Addr, _ uint16) int32 {
+func lookupConnectionUID(_ int, _ netip.Addr, _ uint16, _ netip.Addr, _ uint16) int32 {
 	return -1
 }

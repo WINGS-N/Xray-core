@@ -51,8 +51,29 @@ type Config struct {
 	// the filter on the final result. 0 disables retries entirely; the
 	// initial lookup is always performed.
 	UidLookupTimeoutMs uint32 `protobuf:"varint,10,opt,name=uid_lookup_timeout_ms,json=uidLookupTimeoutMs,proto3" json:"uid_lookup_timeout_ms,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// UIDs whose connections are dispatched with bypass_inbound_tag instead of
+	// the default TUN inbound tag, so routing can divert them to a freedom /
+	// direct outbound and keep them off the VPN. Used by Android non-root path:
+	// VpnService runs without addDisallowedApplication so all apps' traffic is
+	// visible to ConnectivityManager.getConnectionOwnerUid, then bypass UIDs
+	// get silently redirected to the underlying network at gVisor level,
+	// transparently to the app, instead of being dropped outright.
+	BypassUids []uint32 `protobuf:"varint,11,rep,packed,name=bypass_uids,json=bypassUids,proto3" json:"bypass_uids,omitempty"`
+	// Inbound tag the gVisor stack stamps on connections whose source UID
+	// matched bypass_uids. Empty disables the bypass redirect, matching default
+	// behaviour even when bypass_uids is populated (diagnostic-only mode).
+	BypassInboundTag string `protobuf:"bytes,12,opt,name=bypass_inbound_tag,json=bypassInboundTag,proto3" json:"bypass_inbound_tag,omitempty"`
+	// When true and bypass_inbound_tag is non-empty, connections whose source
+	// UID cannot be resolved (typically because the app bound the socket
+	// directly to the TUN interface via SO_BINDTODEVICE or an explicit source
+	// IP, side-stepping Android's per-app VPN tracker so getConnectionOwnerUid
+	// returns INVALID_UID) are also stamped with bypass_inbound_tag instead of
+	// the default tag. Closes the deliberate-leak path for tools like
+	// `curl --interface tun0` at the cost of routing every untracked
+	// connection through the direct outbound.
+	BypassUnknownUid bool `protobuf:"varint,13,opt,name=bypass_unknown_uid,json=bypassUnknownUid,proto3" json:"bypass_unknown_uid,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *Config) Reset() {
@@ -155,11 +176,32 @@ func (x *Config) GetUidLookupTimeoutMs() uint32 {
 	return 0
 }
 
+func (x *Config) GetBypassUids() []uint32 {
+	if x != nil {
+		return x.BypassUids
+	}
+	return nil
+}
+
+func (x *Config) GetBypassInboundTag() string {
+	if x != nil {
+		return x.BypassInboundTag
+	}
+	return ""
+}
+
+func (x *Config) GetBypassUnknownUid() bool {
+	if x != nil {
+		return x.BypassUnknownUid
+	}
+	return false
+}
+
 var File_proxy_tun_config_proto protoreflect.FileDescriptor
 
 const file_proxy_tun_config_proto_rawDesc = "" +
 	"\n" +
-	"\x16proxy/tun/config.proto\x12\x0exray.proxy.tun\"\xe9\x02\n" +
+	"\x16proxy/tun/config.proto\x12\x0exray.proxy.tun\"\xe6\x03\n" +
 	"\x06Config\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
 	"\x03MTU\x18\x02 \x01(\rR\x03MTU\x12\x18\n" +
@@ -172,7 +214,11 @@ const file_proxy_tun_config_proto_rawDesc = "" +
 	"\rexcluded_uids\x18\b \x03(\rR\fexcludedUids\x12!\n" +
 	"\fallowed_uids\x18\t \x03(\rR\vallowedUids\x121\n" +
 	"\x15uid_lookup_timeout_ms\x18\n" +
-	" \x01(\rR\x12uidLookupTimeoutMsBL\n" +
+	" \x01(\rR\x12uidLookupTimeoutMs\x12\x1f\n" +
+	"\vbypass_uids\x18\v \x03(\rR\n" +
+	"bypassUids\x12,\n" +
+	"\x12bypass_inbound_tag\x18\f \x01(\tR\x10bypassInboundTag\x12,\n" +
+	"\x12bypass_unknown_uid\x18\r \x01(\bR\x10bypassUnknownUidBL\n" +
 	"\x12com.xray.proxy.tunP\x01Z#github.com/xtls/xray-core/proxy/tun\xaa\x02\x0eXray.Proxy.Tunb\x06proto3"
 
 var (

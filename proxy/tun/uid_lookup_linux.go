@@ -38,14 +38,33 @@ var (
 )
 
 // lookupConnectionUID returns the UID owning the kernel socket whose local
-// 5-tuple matches (srcAddr, srcPort, dstAddr, dstPort). Returns -1 when the
-// /proc tables do not list the connection (yet) or when the file is not
-// readable. The TUN handler treats -1 as "unknown" and never blocks on it,
-// so a transient miss never causes a packet to be dropped silently.
-func lookupConnectionUID(srcAddr netip.Addr, srcPort uint16, dstAddr netip.Addr, dstPort uint16) int32 {
+// 5-tuple matches (srcAddr, srcPort, dstAddr, dstPort). protocol is the IANA
+// transport protocol number (6=TCP, 17=UDP) so the resolver can disambiguate
+// between protocols when querying the Android ConnectivityManager.
+//
+// Resolution order: cache, then an external callback (set via
+// SetUIDLookupCallback, used on Android non-root where SELinux blocks
+// /proc/net/tcp and INET_DIAG netlink), then /proc/net/tcp* (root TPROXY).
+// Returns -1 when none of the sources can identify the connection.
+func lookupConnectionUID(protocol int, srcAddr netip.Addr, srcPort uint16, dstAddr netip.Addr, dstPort uint16) int32 {
 	key := buildCacheKey(srcAddr, srcPort, dstAddr, dstPort)
 	if uid, ok := readCache(key); ok {
 		return uid
+	}
+
+	if cb := getUIDLookupCallback(); cb != nil {
+		src := netip.AddrPortFrom(srcAddr, srcPort)
+		dst := netip.AddrPortFrom(dstAddr, dstPort)
+		uid := cb(protocol, src, dst)
+		if n := uidLookupDiagCount.Add(1); n%8 == 1 || uid >= 0 {
+			uidDiagWrite("[uid-diag-go] #%d proto=%d %s -> %s uid=%d\n", n, protocol, src.String(), dst.String(), uid)
+		}
+		if uid >= 0 {
+			writeCache(key, uid)
+			return uid
+		}
+	} else if n := uidLookupDiagCount.Add(1); n%32 == 1 {
+		uidDiagWrite("[uid-diag-go] no callback set (#%d)\n", n)
 	}
 
 	srcHex := encodeAddrPort(srcAddr, srcPort)

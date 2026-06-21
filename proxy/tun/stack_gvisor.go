@@ -105,10 +105,23 @@ func (t *stackGVisor) resolveUIDDecision(protocol int, srcAddr tcpip.Address, sr
 	if uid < 0 {
 		// Unknown UID: Android's getConnectionOwnerUid did not see this
 		// connection (typically a SO_BINDTODEVICE leaker like `curl
-		// --interface tun0` that skipped per-app VPN tracking). When the
-		// caller opted into BypassUnknownUID, treat these as bypass too.
+		// --interface tun0` that skipped per-app VPN tracking).
+		//
+		// BypassUnknownUID=true: caller explicitly opted into routing such
+		// connections to direct (freedom). Tag with bypass inbound.
+		//
+		// BypassUnknownUID=false with any UID filter active: drop. Without
+		// the drop, an unknown packet falls through to the default tunnel
+		// handler, which leaks the would-be-bypassed app's traffic into
+		// the VPN (precisely the SO_BINDTODEVICE escape this option was
+		// meant to close). Excluded-only filter (no bypass/allow lists) is
+		// not affected: there "unknown" means "not on the killlist" and
+		// should keep tunneling as normal.
 		if t.bypassUnknownUID && t.bypassInboundTag != "" {
 			return uidDecision{tag: t.bypassInboundTag}
+		}
+		if !t.bypassUnknownUID && (len(t.bypassUIDs) > 0 || len(t.allowedUIDs) > 0) {
+			return uidDecision{drop: true}
 		}
 		return uidDecision{}
 	}

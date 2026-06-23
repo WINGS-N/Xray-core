@@ -130,6 +130,14 @@ func (t *stackGVisor) resolveUIDDecision(protocol int, srcAddr tcpip.Address, sr
 	}
 	if len(t.allowedUIDs) > 0 {
 		if _, allowed := t.allowedUIDs[uint32(uid)]; !allowed {
+			// Not allowlisted. With a bypass inbound configured, divert the
+			// connection to direct (xwhitelist: only listed UIDs stay in the
+			// tunnel, everyone else egresses directly) instead of dropping it,
+			// so non-selected apps keep working. Without a bypass inbound this
+			// stays a strict allowlist that drops non-listed UIDs.
+			if t.bypassInboundTag != "" {
+				return uidDecision{tag: t.bypassInboundTag}
+			}
 			return uidDecision{drop: true}
 		}
 	}

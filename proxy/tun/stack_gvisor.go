@@ -36,17 +36,18 @@ const (
 
 // stackGVisor is ip stack implemented by gVisor package
 type stackGVisor struct {
-	ctx          context.Context
-	tun          Tun
-	idleTimeout  time.Duration
-	handler      *Handler
-	stack        *stack.Stack
-	endpoint     stack.LinkEndpoint
+	ctx              context.Context
+	tun              Tun
+	idleTimeout      time.Duration
+	handler          *Handler
+	stack            *stack.Stack
+	endpoint         stack.LinkEndpoint
 	excludedUIDs     map[uint32]struct{}
 	allowedUIDs      map[uint32]struct{}
 	bypassUIDs       map[uint32]struct{}
 	bypassInboundTag string
 	bypassUnknownUID bool
+	tunnelUnknownUID bool
 	uidLookupTimeout time.Duration
 }
 
@@ -62,6 +63,7 @@ func NewStack(ctx context.Context, options StackOptions, handler *Handler) (Stac
 		bypassUIDs:       options.BypassUIDs,
 		bypassInboundTag: options.BypassInboundTag,
 		bypassUnknownUID: options.BypassUnknownUID,
+		tunnelUnknownUID: options.TunnelUnknownUID,
 		uidLookupTimeout: options.UIDLookupTimeout,
 	}
 
@@ -117,6 +119,13 @@ func (t *stackGVisor) resolveUIDDecision(protocol int, srcAddr tcpip.Address, sr
 		// meant to close). Excluded-only filter (no bypass/allow lists) is
 		// not affected: there "unknown" means "not on the killlist" and
 		// should keep tunneling as normal.
+		//
+		// TunnelUnknownUID=true overrides both: the caller asked to ignore
+		// unknown UIDs and let them fall through to the tunnel even with a
+		// bypass/allow list active (the app's "unknown UID router off").
+		if t.tunnelUnknownUID {
+			return uidDecision{}
+		}
 		if t.bypassUnknownUID && t.bypassInboundTag != "" {
 			return uidDecision{tag: t.bypassInboundTag}
 		}

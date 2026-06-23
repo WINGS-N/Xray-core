@@ -47,4 +47,9 @@ type StackOptions struct {
 	// thus skipped per-app VPN tracking). Effective only when
 	// BypassInboundTag is set.
 	BypassUnknownUID bool
+	// TunnelUnknownUID lets connections whose UID could not be resolved fall
+	// through to the default tunnel handler even when a bypass/allow list is
+	// active, instead of being dropped or bypassed. Takes precedence over
+	// BypassUnknownUID.
+	TunnelUnknownUID bool
 }

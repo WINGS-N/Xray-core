@@ -72,6 +72,12 @@ type Config struct {
 	// `curl --interface tun0` at the cost of routing every untracked
 	// connection through the direct outbound.
 	BypassUnknownUid bool `protobuf:"varint,13,opt,name=bypass_unknown_uid,json=bypassUnknownUid,proto3" json:"bypass_unknown_uid,omitempty"`
+	// tunnel_unknown_uid lets connections whose UID could not be resolved fall
+	// through to the default tunnel handler even when a bypass/allow list is
+	// active, instead of being dropped (or diverted via bypass_unknown_uid).
+	// Takes precedence over bypass_unknown_uid. Used by the app's "unknown UID
+	// router OFF" choice: ignore unknown UIDs and let them tunnel as normal.
+	TunnelUnknownUid bool `protobuf:"varint,14,opt,name=tunnel_unknown_uid,json=tunnelUnknownUid,proto3" json:"tunnel_unknown_uid,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -197,11 +203,18 @@ func (x *Config) GetBypassUnknownUid() bool {
 	return false
 }
 
+func (x *Config) GetTunnelUnknownUid() bool {
+	if x != nil {
+		return x.TunnelUnknownUid
+	}
+	return false
+}
+
 var File_proxy_tun_config_proto protoreflect.FileDescriptor
 
 const file_proxy_tun_config_proto_rawDesc = "" +
 	"\n" +
-	"\x16proxy/tun/config.proto\x12\x0exray.proxy.tun\"\xe6\x03\n" +
+	"\x16proxy/tun/config.proto\x12\x0exray.proxy.tun\"\x94\x04\n" +
 	"\x06Config\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
 	"\x03MTU\x18\x02 \x01(\rR\x03MTU\x12\x18\n" +
@@ -218,7 +231,8 @@ const file_proxy_tun_config_proto_rawDesc = "" +
 	"\vbypass_uids\x18\v \x03(\rR\n" +
 	"bypassUids\x12,\n" +
 	"\x12bypass_inbound_tag\x18\f \x01(\tR\x10bypassInboundTag\x12,\n" +
-	"\x12bypass_unknown_uid\x18\r \x01(\bR\x10bypassUnknownUidBL\n" +
+	"\x12bypass_unknown_uid\x18\r \x01(\bR\x10bypassUnknownUid\x12,\n" +
+	"\x12tunnel_unknown_uid\x18\x0e \x01(\bR\x10tunnelUnknownUidBL\n" +
 	"\x12com.xray.proxy.tunP\x01Z#github.com/xtls/xray-core/proxy/tun\xaa\x02\x0eXray.Proxy.Tunb\x06proto3"
 
 var (

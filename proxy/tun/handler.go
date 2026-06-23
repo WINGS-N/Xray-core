@@ -135,6 +135,7 @@ func (t *Handler) Start() error {
 		BypassUIDs:       bypass,
 		BypassInboundTag: t.config.BypassInboundTag,
 		BypassUnknownUID: t.config.BypassUnknownUid,
+		TunnelUnknownUID: t.config.TunnelUnknownUid,
 		UIDLookupTimeout: time.Duration(t.config.UidLookupTimeoutMs) * time.Millisecond,
 	}
 	tunStack, err := NewStack(t.ctx, tunStackOptions, t)

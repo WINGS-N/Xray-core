@@ -56,4 +56,10 @@ message Config {
   // `curl --interface tun0` at the cost of routing every untracked
   // connection through the direct outbound.
   bool bypass_unknown_uid = 13;
+  // tunnel_unknown_uid lets connections whose UID could not be resolved fall
+  // through to the default tunnel handler even when a bypass/allow list is
+  // active, instead of being dropped (or diverted via bypass_unknown_uid).
+  // Takes precedence over bypass_unknown_uid. Used by the app's "unknown UID
+  // router OFF" choice: ignore unknown UIDs and let them tunnel as normal.
+  bool tunnel_unknown_uid = 14;
 }

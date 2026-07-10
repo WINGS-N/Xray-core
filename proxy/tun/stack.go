@@ -52,4 +52,14 @@ type StackOptions struct {
 	// active, instead of being dropped or bypassed. Takes precedence over
 	// BypassUnknownUID.
 	TunnelUnknownUID bool
+	// RouteUIDs holds UIDs whose connections are dispatched with
+	// RouteInboundTag instead of the regular tun inbound tag, independent of
+	// the bypass/allow decision (an ExcludedUIDs kill still wins). Lets routing
+	// steer selected apps into a dedicated outbound (e.g. a standalone ByeDPI
+	// SOCKS outbound) on top of any app-routing mode.
+	RouteUIDs map[uint32]struct{}
+	// RouteInboundTag overrides the inbound Tag passed downstream when the
+	// connection's source UID is in RouteUIDs. Empty means no override even if
+	// RouteUIDs is set.
+	RouteInboundTag string
 }

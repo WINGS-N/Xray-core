@@ -62,4 +62,17 @@ message Config {
   // Takes precedence over bypass_unknown_uid. Used by the app's "unknown UID
   // router OFF" choice: ignore unknown UIDs and let them tunnel as normal.
   bool tunnel_unknown_uid = 14;
+  // UIDs whose connections are dispatched with route_inbound_tag instead of
+  // the default TUN inbound tag. Independent of bypass_uids/allowed_uids: a
+  // route UID is stamped with route_inbound_tag regardless of the bypass /
+  // allowlist decision (except an excluded_uids kill still wins), so routing
+  // can steer those apps into a dedicated outbound (e.g. a standalone ByeDPI
+  // SOCKS outbound) while every other app follows the normal tunnel/bypass
+  // policy. Used by the app's per-app ByeDPI feature to divert selected apps
+  // through the DPI-bypass proxy on top of any app-routing mode.
+  repeated uint32 route_uids = 15;
+  // Inbound tag the gVisor stack stamps on connections whose source UID
+  // matched route_uids. Empty disables the route redirect even when route_uids
+  // is populated.
+  string route_inbound_tag = 16;
 }

@@ -20,6 +20,8 @@ type TunConfig struct {
 	BypassUnknownUID       bool     `json:"bypassUnknownUid"`
 	TunnelUnknownUID       bool     `json:"tunnelUnknownUid"`
 	UIDLookupTimeoutMs     uint32   `json:"uidLookupTimeoutMs"`
+	RouteUIDs              []uint32 `json:"routeUids"`
+	RouteInboundTag        string   `json:"routeInboundTag"`
 }
 
 func (v *TunConfig) Build() (proto.Message, error) {
@@ -37,6 +39,8 @@ func (v *TunConfig) Build() (proto.Message, error) {
 		BypassUnknownUid:       v.BypassUnknownUID,
 		TunnelUnknownUid:       v.TunnelUnknownUID,
 		UidLookupTimeoutMs:     v.UIDLookupTimeoutMs,
+		RouteUids:              v.RouteUIDs,
+		RouteInboundTag:        v.RouteInboundTag,
 	}
 	if v.AutoOutboundsInterface != nil {
 		config.AutoOutboundsInterface = *v.AutoOutboundsInterface

@@ -48,6 +48,8 @@ type stackGVisor struct {
 	bypassInboundTag string
 	bypassUnknownUID bool
 	tunnelUnknownUID bool
+	routeUIDs        map[uint32]struct{}
+	routeInboundTag  string
 	uidLookupTimeout time.Duration
 }
 
@@ -64,6 +66,8 @@ func NewStack(ctx context.Context, options StackOptions, handler *Handler) (Stac
 		bypassInboundTag: options.BypassInboundTag,
 		bypassUnknownUID: options.BypassUnknownUID,
 		tunnelUnknownUID: options.TunnelUnknownUID,
+		routeUIDs:        options.RouteUIDs,
+		routeInboundTag:  options.RouteInboundTag,
 		uidLookupTimeout: options.UIDLookupTimeout,
 	}
 
@@ -92,7 +96,7 @@ type uidDecision struct {
 }
 
 func (t *stackGVisor) resolveUIDDecision(protocol int, srcAddr tcpip.Address, srcPort uint16, dstAddr tcpip.Address, dstPort uint16) uidDecision {
-	if len(t.excludedUIDs) == 0 && len(t.allowedUIDs) == 0 && len(t.bypassUIDs) == 0 {
+	if len(t.excludedUIDs) == 0 && len(t.allowedUIDs) == 0 && len(t.bypassUIDs) == 0 && len(t.routeUIDs) == 0 {
 		return uidDecision{}
 	}
 	src, ok := netip.AddrFromSlice(srcAddr.AsSlice())
@@ -136,6 +140,16 @@ func (t *stackGVisor) resolveUIDDecision(protocol int, srcAddr tcpip.Address, sr
 	}
 	if _, blocked := t.excludedUIDs[uint32(uid)]; blocked {
 		return uidDecision{drop: true}
+	}
+	// Route divert wins over the allow/bypass decision (but not over an
+	// excluded kill above): a listed UID is always stamped with
+	// routeInboundTag so routing can steer it into its dedicated outbound
+	// (the standalone ByeDPI SOCKS outbound) regardless of the app-routing
+	// mode. Independent of bypass_uids/allowed_uids.
+	if len(t.routeUIDs) > 0 && t.routeInboundTag != "" {
+		if _, routed := t.routeUIDs[uint32(uid)]; routed {
+			return uidDecision{tag: t.routeInboundTag}
+		}
 	}
 	if len(t.allowedUIDs) > 0 {
 		if _, allowed := t.allowedUIDs[uint32(uid)]; !allowed {

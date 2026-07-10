@@ -147,6 +147,13 @@ func (t *Handler) Start() error {
 			bypass[uid] = struct{}{}
 		}
 	}
+	var route map[uint32]struct{}
+	if len(t.config.RouteUids) > 0 {
+		route = make(map[uint32]struct{}, len(t.config.RouteUids))
+		for _, uid := range t.config.RouteUids {
+			route[uid] = struct{}{}
+		}
+	}
 	tunStackOptions := StackOptions{
 		Tun:              tunInterface,
 		IdleTimeout:      t.policyManager.ForLevel(t.config.UserLevel).Timeouts.ConnectionIdle,
@@ -157,6 +164,8 @@ func (t *Handler) Start() error {
 		BypassUnknownUID: t.config.BypassUnknownUid,
 		TunnelUnknownUID: t.config.TunnelUnknownUid,
 		UIDLookupTimeout: time.Duration(t.config.UidLookupTimeoutMs) * time.Millisecond,
+		RouteUIDs:        route,
+		RouteInboundTag:  t.config.RouteInboundTag,
 	}
 	tunStack, err := NewStack(t.ctx, tunStackOptions, t)
 	if err != nil {

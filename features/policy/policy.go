@@ -56,11 +56,20 @@ type System struct {
 	Buffer Buffer
 }
 
+// Limit caps a single user's throughput. Zero means unlimited.
+type Limit struct {
+	// Bytes per second, per user rather than per connection: a cap that resets
+	// with every new connection is no cap at all.
+	UplinkBps   uint64
+	DownlinkBps uint64
+}
+
 // Session is session based settings for controlling Xray requests. It contains various settings (or limits) that may differ for different users in the context.
 type Session struct {
 	Timeouts Timeout // Timeout settings
 	Stats    Stats
 	Buffer   Buffer
+	Limit    Limit
 }
 
 // Manager is a feature that provides Policy for the given user by its id or level.

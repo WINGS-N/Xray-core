@@ -13,6 +13,9 @@ type Policy struct {
 	StatsUserDownlink bool    `json:"statsUserDownlink"`
 	StatsUserOnline   bool    `json:"statsUserOnline"`
 	BufferSize        *int32  `json:"bufferSize"`
+	// Speed caps in bytes per second, per user. Zero or absent means no cap.
+	UplinkSpeed   *uint64 `json:"uplinkSpeed"`
+	DownlinkSpeed *uint64 `json:"downlinkSpeed"`
 }
 
 func (t *Policy) Build() (*policy.Policy, error) {
@@ -37,6 +40,17 @@ func (t *Policy) Build() (*policy.Policy, error) {
 			UserDownlink: t.StatsUserDownlink,
 			UserOnline:   t.StatsUserOnline,
 		},
+	}
+
+	if t.UplinkSpeed != nil || t.DownlinkSpeed != nil {
+		limit := &policy.Policy_Limit{}
+		if t.UplinkSpeed != nil {
+			limit.UplinkBps = *t.UplinkSpeed
+		}
+		if t.DownlinkSpeed != nil {
+			limit.DownlinkBps = *t.DownlinkSpeed
+		}
+		p.Limit = limit
 	}
 
 	if t.BufferSize != nil {

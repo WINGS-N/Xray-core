@@ -98,6 +98,9 @@ type DefaultDispatcher struct {
 	policy policy.Manager
 	stats  stats.Manager
 	fdns   dns.FakeDNSEngine
+	// limits paces users whose policy level caps their speed. Shared across all
+	// of one user's connections
+	limits *userLimiters
 }
 
 func init() {
@@ -121,6 +124,7 @@ func (d *DefaultDispatcher) Init(config *Config, om outbound.Manager, router rou
 	d.router = router
 	d.policy = pm
 	d.stats = sm
+	d.limits = newUserLimiters()
 	return nil
 }
 
@@ -181,6 +185,13 @@ func (d *DefaultDispatcher) getLink(ctx context.Context) (*transport.Link, *tran
 
 		if p.Stats.UserOnline {
 			trackOnlineIP(ctx, d.stats, user.Email, sessionInbound.Source.Address.String())
+		}
+
+		if limiter := d.limits.Uplink(user.Email, p.Limit.UplinkBps); limiter != nil {
+			inboundLink.Writer = newRateLimitWriter(inboundLink.Writer, limiter)
+		}
+		if limiter := d.limits.Downlink(user.Email, p.Limit.DownlinkBps); limiter != nil {
+			outboundLink.Writer = newRateLimitWriter(outboundLink.Writer, limiter)
 		}
 	}
 

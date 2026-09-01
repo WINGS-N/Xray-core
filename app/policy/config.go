@@ -78,6 +78,10 @@ func (p *Policy) ToCorePolicy() policy.Session {
 	if p.Buffer != nil {
 		cp.Buffer.PerConnection = p.Buffer.Connection
 	}
+	if p.Limit != nil {
+		cp.Limit.UplinkBps = p.Limit.UplinkBps
+		cp.Limit.DownlinkBps = p.Limit.DownlinkBps
+	}
 	return cp
 }
 

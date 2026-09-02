@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/xtls/xray-core/app/wingsvpn/tlsprint"
 	wingswatch "github.com/xtls/xray-core/app/wingsvpn/watch"
 	"github.com/xtls/xray-core/common"
 	"github.com/xtls/xray-core/common/buf"
@@ -295,6 +296,13 @@ func (d *DefaultDispatcher) Dispatch(ctx context.Context, destination net.Destin
 	}
 
 	sniffingRequest := content.SniffingRequest
+	// Отпечаток TLS снимается по дороге со сниффингом, и место под него надо
+	// повесить до того, как разбор уедет в свою горутину. Без подписчиков не
+	// вешаем вовсе: на телефоне ядро крутится тем же кодом, и считать хеши,
+	// которые никто не слушает, это выброшенный процессор
+	if wingswatch.Default.Active() {
+		ctx = tlsprint.WithSlot(ctx)
+	}
 	inbound, outbound := d.getLink(ctx)
 	if !sniffingRequest.Enabled {
 		go d.routedDispatch(ctx, outbound, destination)
@@ -416,6 +424,7 @@ func sniffer(ctx context.Context, cReader *cachedReader, metadataOnly bool, netw
 				cacheDeadline -= cachingTimeElapsed
 
 				if !payload.IsEmpty() {
+					tlsprint.Record(ctx, payload.Bytes())
 					result, err := sniffer.Sniff(ctx, payload.Bytes(), network)
 					switch err {
 					case common.ErrNoClue: // No Clue: protocol not matches, and sniffer cannot determine whether there will be a match or not

@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/xtls/xray-core/app/wingsvpn/tlsprint"
 	"github.com/xtls/xray-core/common"
 	"github.com/xtls/xray-core/common/buf"
 	"github.com/xtls/xray-core/common/net"
@@ -77,6 +78,10 @@ func Observe(ctx context.Context, dest net.Destination, link *transport.Link, ou
 			} else {
 				event.TargetIp = dest.Address.IP().String()
 			}
+		}
+		if print, ok := tlsprint.FromContext(ctx); ok {
+			event.TlsJa3 = print.JA3Hash
+			event.TlsJa4 = print.JA4
 		}
 		if inbound := session.InboundFromContext(ctx); inbound != nil {
 			event.InboundTag = inbound.Tag

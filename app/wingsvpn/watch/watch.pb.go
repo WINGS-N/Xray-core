@@ -35,13 +35,17 @@ type AccessEvent struct {
 	SourceIp    string `protobuf:"bytes,5,opt,name=source_ip,json=sourceIp,proto3" json:"source_ip,omitempty"`
 	// Пусто, когда цель адресована голым IP. Домен появляется только со
 	// включённым sniffing
-	TargetDomain  string `protobuf:"bytes,6,opt,name=target_domain,json=targetDomain,proto3" json:"target_domain,omitempty"`
-	TargetIp      string `protobuf:"bytes,7,opt,name=target_ip,json=targetIp,proto3" json:"target_ip,omitempty"`
-	TargetPort    uint32 `protobuf:"varint,8,opt,name=target_port,json=targetPort,proto3" json:"target_port,omitempty"`
-	Network       string `protobuf:"bytes,9,opt,name=network,proto3" json:"network,omitempty"`
-	UpBytes       uint64 `protobuf:"varint,10,opt,name=up_bytes,json=upBytes,proto3" json:"up_bytes,omitempty"`
-	DownBytes     uint64 `protobuf:"varint,11,opt,name=down_bytes,json=downBytes,proto3" json:"down_bytes,omitempty"`
-	DurationMs    uint32 `protobuf:"varint,12,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	TargetDomain string `protobuf:"bytes,6,opt,name=target_domain,json=targetDomain,proto3" json:"target_domain,omitempty"`
+	TargetIp     string `protobuf:"bytes,7,opt,name=target_ip,json=targetIp,proto3" json:"target_ip,omitempty"`
+	TargetPort   uint32 `protobuf:"varint,8,opt,name=target_port,json=targetPort,proto3" json:"target_port,omitempty"`
+	Network      string `protobuf:"bytes,9,opt,name=network,proto3" json:"network,omitempty"`
+	UpBytes      uint64 `protobuf:"varint,10,opt,name=up_bytes,json=upBytes,proto3" json:"up_bytes,omitempty"`
+	DownBytes    uint64 `protobuf:"varint,11,opt,name=down_bytes,json=downBytes,proto3" json:"down_bytes,omitempty"`
+	DurationMs   uint32 `protobuf:"varint,12,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	// Отпечаток TLS-клиента. Адрес у мобильного меняется законно, а стек нет:
+	// пять разных отпечатков на одной ссылке это разные люди
+	TlsJa3        string `protobuf:"bytes,13,opt,name=tls_ja3,json=tlsJa3,proto3" json:"tls_ja3,omitempty"`
+	TlsJa4        string `protobuf:"bytes,14,opt,name=tls_ja4,json=tlsJa4,proto3" json:"tls_ja4,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -160,6 +164,20 @@ func (x *AccessEvent) GetDurationMs() uint32 {
 	return 0
 }
 
+func (x *AccessEvent) GetTlsJa3() string {
+	if x != nil {
+		return x.TlsJa3
+	}
+	return ""
+}
+
+func (x *AccessEvent) GetTlsJa4() string {
+	if x != nil {
+		return x.TlsJa4
+	}
+	return ""
+}
+
 type StreamAccessRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -237,7 +255,7 @@ var File_app_wingsvpn_watch_watch_proto protoreflect.FileDescriptor
 
 const file_app_wingsvpn_watch_watch_proto_rawDesc = "" +
 	"\n" +
-	"\x1eapp/wingsvpn/watch/watch.proto\x12\x17xray.app.wingsvpn.watch\"\xfe\x02\n" +
+	"\x1eapp/wingsvpn/watch/watch.proto\x12\x17xray.app.wingsvpn.watch\"\xb0\x03\n" +
 	"\vAccessEvent\x12 \n" +
 	"\fat_unix_nano\x18\x01 \x01(\x03R\n" +
 	"atUnixNano\x12\x14\n" +
@@ -256,7 +274,9 @@ const file_app_wingsvpn_watch_watch_proto_rawDesc = "" +
 	"\n" +
 	"down_bytes\x18\v \x01(\x04R\tdownBytes\x12\x1f\n" +
 	"\vduration_ms\x18\f \x01(\rR\n" +
-	"durationMs\"\x15\n" +
+	"durationMs\x12\x17\n" +
+	"\atls_ja3\x18\r \x01(\tR\x06tlsJa3\x12\x17\n" +
+	"\atls_ja4\x18\x0e \x01(\tR\x06tlsJa4\"\x15\n" +
 	"\x13StreamAccessRequest\"\b\n" +
 	"\x06Config2r\n" +
 	"\n" +

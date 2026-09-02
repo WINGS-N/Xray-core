@@ -26,6 +26,10 @@ message AccessEvent {
   uint64 up_bytes = 10;
   uint64 down_bytes = 11;
   uint32 duration_ms = 12;
+  // Отпечаток TLS-клиента. Адрес у мобильного меняется законно, а стек нет:
+  // пять разных отпечатков на одной ссылке это разные люди
+  string tls_ja3 = 13;
+  string tls_ja4 = 14;
 }
 
 message StreamAccessRequest {}

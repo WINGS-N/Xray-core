@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/xtls/xray-core/app/wingswatch"
 	"github.com/xtls/xray-core/common"
 	"github.com/xtls/xray-core/common/buf"
 	"github.com/xtls/xray-core/common/errors"
@@ -512,5 +513,10 @@ func (d *DefaultDispatcher) routedDispatch(ctx context.Context, link *transport.
 		log.Record(accessMessage)
 	}
 
+	// Наблюдение стоит ровно тут, потому что Dispatch держит горутину до конца
+	// проксирования, и объём с длительностью снимаются без всякой ебли с
+	// колбэками. Без подписчиков не делает нихуя
+	link, finish := wingswatch.Observe(ctx, destination, link, handler.Tag())
+	defer finish()
 	handler.Dispatch(ctx, link)
 }

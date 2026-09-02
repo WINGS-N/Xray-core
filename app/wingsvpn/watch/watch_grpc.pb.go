@@ -2,9 +2,9 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v7.35.1
-// source: app/wingswatch/watch.proto
+// source: app/wingsvpn/watch/watch.proto
 
-package wingswatch
+package watch
 
 import (
 	context "context"
@@ -19,7 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	WingsWatch_StreamAccess_FullMethodName = "/xray.app.wingswatch.WingsWatch/StreamAccess"
+	WingsWatch_StreamAccess_FullMethodName = "/xray.app.wingsvpn.watch.WingsWatch/StreamAccess"
 )
 
 // WingsWatchClient is the client API for WingsWatch service.
@@ -116,7 +116,7 @@ type WingsWatch_StreamAccessServer = grpc.ServerStreamingServer[AccessEvent]
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var WingsWatch_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "xray.app.wingswatch.WingsWatch",
+	ServiceName: "xray.app.wingsvpn.watch.WingsWatch",
 	HandlerType: (*WingsWatchServer)(nil),
 	Methods:     []grpc.MethodDesc{},
 	Streams: []grpc.StreamDesc{
@@ -126,5 +126,5 @@ var WingsWatch_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "app/wingswatch/watch.proto",
+	Metadata: "app/wingsvpn/watch/watch.proto",
 }

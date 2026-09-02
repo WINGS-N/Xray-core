@@ -1,4 +1,4 @@
-package wingswatch
+package watch
 
 import (
 	"context"

@@ -2,9 +2,9 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v7.35.1
-// source: app/wingswatch/watch.proto
+// source: app/wingsvpn/watch/watch.proto
 
-package wingswatch
+package watch
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -48,7 +48,7 @@ type AccessEvent struct {
 
 func (x *AccessEvent) Reset() {
 	*x = AccessEvent{}
-	mi := &file_app_wingswatch_watch_proto_msgTypes[0]
+	mi := &file_app_wingsvpn_watch_watch_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -60,7 +60,7 @@ func (x *AccessEvent) String() string {
 func (*AccessEvent) ProtoMessage() {}
 
 func (x *AccessEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_app_wingswatch_watch_proto_msgTypes[0]
+	mi := &file_app_wingsvpn_watch_watch_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -73,7 +73,7 @@ func (x *AccessEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AccessEvent.ProtoReflect.Descriptor instead.
 func (*AccessEvent) Descriptor() ([]byte, []int) {
-	return file_app_wingswatch_watch_proto_rawDescGZIP(), []int{0}
+	return file_app_wingsvpn_watch_watch_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *AccessEvent) GetAtUnixNano() int64 {
@@ -168,7 +168,7 @@ type StreamAccessRequest struct {
 
 func (x *StreamAccessRequest) Reset() {
 	*x = StreamAccessRequest{}
-	mi := &file_app_wingswatch_watch_proto_msgTypes[1]
+	mi := &file_app_wingsvpn_watch_watch_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -180,7 +180,7 @@ func (x *StreamAccessRequest) String() string {
 func (*StreamAccessRequest) ProtoMessage() {}
 
 func (x *StreamAccessRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_app_wingswatch_watch_proto_msgTypes[1]
+	mi := &file_app_wingsvpn_watch_watch_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -193,7 +193,7 @@ func (x *StreamAccessRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamAccessRequest.ProtoReflect.Descriptor instead.
 func (*StreamAccessRequest) Descriptor() ([]byte, []int) {
-	return file_app_wingswatch_watch_proto_rawDescGZIP(), []int{1}
+	return file_app_wingsvpn_watch_watch_proto_rawDescGZIP(), []int{1}
 }
 
 // Config включает сервис. Пустой нарочно, крутилок тут не предусмотрено
@@ -205,7 +205,7 @@ type Config struct {
 
 func (x *Config) Reset() {
 	*x = Config{}
-	mi := &file_app_wingswatch_watch_proto_msgTypes[2]
+	mi := &file_app_wingsvpn_watch_watch_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -217,7 +217,7 @@ func (x *Config) String() string {
 func (*Config) ProtoMessage() {}
 
 func (x *Config) ProtoReflect() protoreflect.Message {
-	mi := &file_app_wingswatch_watch_proto_msgTypes[2]
+	mi := &file_app_wingsvpn_watch_watch_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -230,14 +230,14 @@ func (x *Config) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Config.ProtoReflect.Descriptor instead.
 func (*Config) Descriptor() ([]byte, []int) {
-	return file_app_wingswatch_watch_proto_rawDescGZIP(), []int{2}
+	return file_app_wingsvpn_watch_watch_proto_rawDescGZIP(), []int{2}
 }
 
-var File_app_wingswatch_watch_proto protoreflect.FileDescriptor
+var File_app_wingsvpn_watch_watch_proto protoreflect.FileDescriptor
 
-const file_app_wingswatch_watch_proto_rawDesc = "" +
+const file_app_wingsvpn_watch_watch_proto_rawDesc = "" +
 	"\n" +
-	"\x1aapp/wingswatch/watch.proto\x12\x13xray.app.wingswatch\"\xfe\x02\n" +
+	"\x1eapp/wingsvpn/watch/watch.proto\x12\x17xray.app.wingsvpn.watch\"\xfe\x02\n" +
 	"\vAccessEvent\x12 \n" +
 	"\fat_unix_nano\x18\x01 \x01(\x03R\n" +
 	"atUnixNano\x12\x14\n" +
@@ -258,33 +258,33 @@ const file_app_wingswatch_watch_proto_rawDesc = "" +
 	"\vduration_ms\x18\f \x01(\rR\n" +
 	"durationMs\"\x15\n" +
 	"\x13StreamAccessRequest\"\b\n" +
-	"\x06Config2j\n" +
+	"\x06Config2r\n" +
 	"\n" +
-	"WingsWatch\x12\\\n" +
-	"\fStreamAccess\x12(.xray.app.wingswatch.StreamAccessRequest\x1a .xray.app.wingswatch.AccessEvent0\x01B[\n" +
-	"\x17com.xray.app.wingswatchP\x01Z(github.com/xtls/xray-core/app/wingswatch\xaa\x02\x13Xray.App.Wingswatchb\x06proto3"
+	"WingsWatch\x12d\n" +
+	"\fStreamAccess\x12,.xray.app.wingsvpn.watch.StreamAccessRequest\x1a$.xray.app.wingsvpn.watch.AccessEvent0\x01Bg\n" +
+	"\x1bcom.xray.app.wingsvpn.watchP\x01Z,github.com/xtls/xray-core/app/wingsvpn/watch\xaa\x02\x17Xray.App.Wingsvpn.Watchb\x06proto3"
 
 var (
-	file_app_wingswatch_watch_proto_rawDescOnce sync.Once
-	file_app_wingswatch_watch_proto_rawDescData []byte
+	file_app_wingsvpn_watch_watch_proto_rawDescOnce sync.Once
+	file_app_wingsvpn_watch_watch_proto_rawDescData []byte
 )
 
-func file_app_wingswatch_watch_proto_rawDescGZIP() []byte {
-	file_app_wingswatch_watch_proto_rawDescOnce.Do(func() {
-		file_app_wingswatch_watch_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_app_wingswatch_watch_proto_rawDesc), len(file_app_wingswatch_watch_proto_rawDesc)))
+func file_app_wingsvpn_watch_watch_proto_rawDescGZIP() []byte {
+	file_app_wingsvpn_watch_watch_proto_rawDescOnce.Do(func() {
+		file_app_wingsvpn_watch_watch_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_app_wingsvpn_watch_watch_proto_rawDesc), len(file_app_wingsvpn_watch_watch_proto_rawDesc)))
 	})
-	return file_app_wingswatch_watch_proto_rawDescData
+	return file_app_wingsvpn_watch_watch_proto_rawDescData
 }
 
-var file_app_wingswatch_watch_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
-var file_app_wingswatch_watch_proto_goTypes = []any{
-	(*AccessEvent)(nil),         // 0: xray.app.wingswatch.AccessEvent
-	(*StreamAccessRequest)(nil), // 1: xray.app.wingswatch.StreamAccessRequest
-	(*Config)(nil),              // 2: xray.app.wingswatch.Config
+var file_app_wingsvpn_watch_watch_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_app_wingsvpn_watch_watch_proto_goTypes = []any{
+	(*AccessEvent)(nil),         // 0: xray.app.wingsvpn.watch.AccessEvent
+	(*StreamAccessRequest)(nil), // 1: xray.app.wingsvpn.watch.StreamAccessRequest
+	(*Config)(nil),              // 2: xray.app.wingsvpn.watch.Config
 }
-var file_app_wingswatch_watch_proto_depIdxs = []int32{
-	1, // 0: xray.app.wingswatch.WingsWatch.StreamAccess:input_type -> xray.app.wingswatch.StreamAccessRequest
-	0, // 1: xray.app.wingswatch.WingsWatch.StreamAccess:output_type -> xray.app.wingswatch.AccessEvent
+var file_app_wingsvpn_watch_watch_proto_depIdxs = []int32{
+	1, // 0: xray.app.wingsvpn.watch.WingsWatch.StreamAccess:input_type -> xray.app.wingsvpn.watch.StreamAccessRequest
+	0, // 1: xray.app.wingsvpn.watch.WingsWatch.StreamAccess:output_type -> xray.app.wingsvpn.watch.AccessEvent
 	1, // [1:2] is the sub-list for method output_type
 	0, // [0:1] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
@@ -292,26 +292,26 @@ var file_app_wingswatch_watch_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for field type_name
 }
 
-func init() { file_app_wingswatch_watch_proto_init() }
-func file_app_wingswatch_watch_proto_init() {
-	if File_app_wingswatch_watch_proto != nil {
+func init() { file_app_wingsvpn_watch_watch_proto_init() }
+func file_app_wingsvpn_watch_watch_proto_init() {
+	if File_app_wingsvpn_watch_watch_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_app_wingswatch_watch_proto_rawDesc), len(file_app_wingswatch_watch_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_app_wingsvpn_watch_watch_proto_rawDesc), len(file_app_wingsvpn_watch_watch_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_app_wingswatch_watch_proto_goTypes,
-		DependencyIndexes: file_app_wingswatch_watch_proto_depIdxs,
-		MessageInfos:      file_app_wingswatch_watch_proto_msgTypes,
+		GoTypes:           file_app_wingsvpn_watch_watch_proto_goTypes,
+		DependencyIndexes: file_app_wingsvpn_watch_watch_proto_depIdxs,
+		MessageInfos:      file_app_wingsvpn_watch_watch_proto_msgTypes,
 	}.Build()
-	File_app_wingswatch_watch_proto = out.File
-	file_app_wingswatch_watch_proto_goTypes = nil
-	file_app_wingswatch_watch_proto_depIdxs = nil
+	File_app_wingsvpn_watch_watch_proto = out.File
+	file_app_wingsvpn_watch_watch_proto_goTypes = nil
+	file_app_wingsvpn_watch_watch_proto_depIdxs = nil
 }

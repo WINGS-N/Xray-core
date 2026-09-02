@@ -1,9 +1,9 @@
 syntax = "proto3";
 
-package xray.app.wingswatch;
-option csharp_namespace = "Xray.App.Wingswatch";
-option go_package = "github.com/xtls/xray-core/app/wingswatch";
-option java_package = "com.xray.app.wingswatch";
+package xray.app.wingsvpn.watch;
+option csharp_namespace = "Xray.App.Wingsvpn.Watch";
+option go_package = "github.com/xtls/xray-core/app/wingsvpn/watch";
+option java_package = "com.xray.app.wingsvpn.watch";
 option java_multiple_files = true;
 
 // AccessEvent - одно закрытое соединение целиком, а не строка лога. Текстовый

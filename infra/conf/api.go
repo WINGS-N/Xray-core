@@ -9,7 +9,7 @@ import (
 	handlerservice "github.com/xtls/xray-core/app/proxyman/command"
 	routerservice "github.com/xtls/xray-core/app/router/command"
 	statsservice "github.com/xtls/xray-core/app/stats/command"
-	wingswatchservice "github.com/xtls/xray-core/app/wingswatch"
+	wingswatchservice "github.com/xtls/xray-core/app/wingsvpn/watch"
 	"github.com/xtls/xray-core/common/errors"
 	"github.com/xtls/xray-core/common/serial"
 )

@@ -13,7 +13,7 @@ import (
 	_ "github.com/xtls/xray-core/app/log/command"
 	_ "github.com/xtls/xray-core/app/proxyman/command"
 	_ "github.com/xtls/xray-core/app/stats/command"
-	_ "github.com/xtls/xray-core/app/wingswatch"
+	_ "github.com/xtls/xray-core/app/wingsvpn/watch"
 
 	// Developer preview services
 	_ "github.com/xtls/xray-core/app/observatory/command"

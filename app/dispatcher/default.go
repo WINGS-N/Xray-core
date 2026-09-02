@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/xtls/xray-core/app/wingswatch"
+	wingswatch "github.com/xtls/xray-core/app/wingsvpn/watch"
 	"github.com/xtls/xray-core/common"
 	"github.com/xtls/xray-core/common/buf"
 	"github.com/xtls/xray-core/common/errors"

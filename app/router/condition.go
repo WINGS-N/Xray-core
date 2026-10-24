@@ -14,6 +14,7 @@ import (
 	"github.com/xtls/xray-core/common/net"
 	"github.com/xtls/xray-core/features/routing"
 	"github.com/xtls/xray-core/features/routing/dns"
+	routingsession "github.com/xtls/xray-core/features/routing/session"
 )
 
 type Condition interface {
@@ -290,6 +291,20 @@ func (m *AttributeMatcher) Apply(ctx routing.Context) bool {
 	return m.Match(attributes)
 }
 
+// originalTarget returns the address a connection was opened to, before
+// anything of this run replaced it
+func originalTarget(ctx routing.Context) net.Destination {
+	switch c := ctx.(type) {
+	case *dns.ResolvableContext:
+		return originalTarget(c.Context)
+	case *routingsession.Context:
+		if c.Outbound != nil {
+			return c.Outbound.OriginalTarget
+		}
+	}
+	return net.Destination{}
+}
+
 type ProcessNameMatcher struct {
 	ProcessNames  []string
 	AbsPaths      []string
@@ -367,6 +382,13 @@ func (m *ProcessNameMatcher) Apply(ctx routing.Context) bool {
 	} else if len(ctx.GetTargetIPs()) > 0 {
 		dstIP = ctx.GetTargetIPs()[0].String()
 		dstPort = uint16(ctx.GetTargetPort())
+	} else if original := originalTarget(ctx); original.IsValid() && original.Address.Family().IsIP() {
+		// A sniffer puts the domain it read in place of the target, and an
+		// owner cannot be looked up by a domain: the address the connection
+		// was opened to is what the tables and the system are keyed by, and it
+		// is kept as the original target
+		dstIP = original.Address.IP().String()
+		dstPort = uint16(original.Port)
 	}
 
 	pid, name, absPath, err := net.FindProcess(network, srcIP, uint16(srcPort), dstIP, uint16(dstPort))

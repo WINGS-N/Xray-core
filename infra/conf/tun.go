@@ -26,15 +26,6 @@ type TunConfig struct {
 	AutoOutboundsInterface *string  `json:"autoOutboundsInterface"`
 	AutoSystemDnsToGateway bool     `json:"autoSystemDnsToGateway"`
 	AutoSystemWfpBlockLeak []string `json:"autoSystemWfpBlockLeak"`
-	ExcludedUIDs           []uint32 `json:"excludedUids"`
-	AllowedUIDs            []uint32 `json:"allowedUids"`
-	BypassUIDs             []uint32 `json:"bypassUids"`
-	BypassInboundTag       string   `json:"bypassInboundTag"`
-	BypassUnknownUID       bool     `json:"bypassUnknownUid"`
-	TunnelUnknownUID       bool     `json:"tunnelUnknownUid"`
-	UIDLookupTimeoutMs     uint32   `json:"uidLookupTimeoutMs"`
-	RouteUIDs              []uint32 `json:"routeUids"`
-	RouteInboundTag        string   `json:"routeInboundTag"`
 }
 
 func (v *TunConfig) Build() (proto.Message, error) {
@@ -47,15 +38,6 @@ func (v *TunConfig) Build() (proto.Message, error) {
 		UserLevel:              v.UserLevel,
 		AutoSystemRoutingTable: v.AutoSystemRoutingTable,
 		AutoSystemDnsToGateway: v.AutoSystemDnsToGateway,
-		ExcludedUids:           v.ExcludedUIDs,
-		AllowedUids:            v.AllowedUIDs,
-		BypassUids:             v.BypassUIDs,
-		BypassInboundTag:       v.BypassInboundTag,
-		BypassUnknownUid:       v.BypassUnknownUID,
-		TunnelUnknownUid:       v.TunnelUnknownUID,
-		UidLookupTimeoutMs:     v.UIDLookupTimeoutMs,
-		RouteUids:              v.RouteUIDs,
-		RouteInboundTag:        v.RouteInboundTag,
 	}
 	for _, leak := range v.AutoSystemWfpBlockLeak {
 		switch leak := strings.ToLower(leak); leak {

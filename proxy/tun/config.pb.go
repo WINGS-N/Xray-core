@@ -7,11 +7,12 @@
 package tun
 
 import (
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
+
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -33,69 +34,8 @@ type Config struct {
 	Desc                   string                 `protobuf:"bytes,8,opt,name=desc,proto3" json:"desc,omitempty"`
 	AutoSystemDnsToGateway bool                   `protobuf:"varint,9,opt,name=auto_system_dns_to_gateway,json=autoSystemDnsToGateway,proto3" json:"auto_system_dns_to_gateway,omitempty"`
 	AutoSystemWfpBlockLeak []string               `protobuf:"bytes,10,rep,name=auto_system_wfp_block_leak,json=autoSystemWfpBlockLeak,proto3" json:"auto_system_wfp_block_leak,omitempty"`
-	// UIDs that must not be tunneled. Connections arriving at the TUN with a
-	// source UID present in this list are dropped before any dispatch.
-	// Used by Android VpnService to enforce per-app bypass at the ip stack
-	// level, since Android's addDisallowedApplication only steers routing and
-	// does not prevent excluded apps from binding to the TUN interface directly.
-	ExcludedUids []uint32 `protobuf:"varint,11,rep,packed,name=excluded_uids,json=excludedUids,proto3" json:"excluded_uids,omitempty"`
-	// When non-empty, only connections whose source UID appears in this list
-	// are allowed; everyone else is dropped. Mirrors Android's allowlist
-	// VpnService.Builder mode and acts as the secondary filter at the ip stack
-	// level. excluded_uids still takes precedence over allowed_uids.
-	AllowedUids []uint32 `protobuf:"varint,12,rep,packed,name=allowed_uids,json=allowedUids,proto3" json:"allowed_uids,omitempty"`
-	// Grace window in milliseconds for retrying the /proc/net UID lookup when
-	// the first probe returns no match. Race: apps that open many sockets in
-	// rapid succession (e.g. Tor pulling several guards at once) send the SYN
-	// through the TUN before the kernel finishes publishing the socket in
-	// /proc/net/tcp*, so the first lookup misses and a strict filter would
-	// drop legitimate traffic. With this set, the stack polls the /proc table
-	// every ~5 ms until the UID resolves or the timeout elapses, then applies
-	// the filter on the final result. 0 disables retries entirely; the
-	// initial lookup is always performed.
-	UidLookupTimeoutMs uint32 `protobuf:"varint,13,opt,name=uid_lookup_timeout_ms,json=uidLookupTimeoutMs,proto3" json:"uid_lookup_timeout_ms,omitempty"`
-	// UIDs whose connections are dispatched with bypass_inbound_tag instead of
-	// the default TUN inbound tag, so routing can divert them to a freedom /
-	// direct outbound and keep them off the VPN. Used by Android non-root path:
-	// VpnService runs without addDisallowedApplication so all apps' traffic is
-	// visible to ConnectivityManager.getConnectionOwnerUid, then bypass UIDs
-	// get silently redirected to the underlying network at ip stack level,
-	// transparently to the app, instead of being dropped outright.
-	BypassUids []uint32 `protobuf:"varint,14,rep,packed,name=bypass_uids,json=bypassUids,proto3" json:"bypass_uids,omitempty"`
-	// Inbound tag the ip stack stamps on connections whose source UID matched
-	// bypass_uids. Empty disables the bypass redirect, matching default
-	// behaviour even when bypass_uids is populated (diagnostic-only mode).
-	BypassInboundTag string `protobuf:"bytes,15,opt,name=bypass_inbound_tag,json=bypassInboundTag,proto3" json:"bypass_inbound_tag,omitempty"`
-	// When true and bypass_inbound_tag is non-empty, connections whose source
-	// UID cannot be resolved (typically because the app bound the socket
-	// directly to the TUN interface via SO_BINDTODEVICE or an explicit source
-	// IP, side-stepping Android's per-app VPN tracker so getConnectionOwnerUid
-	// returns INVALID_UID) are also stamped with bypass_inbound_tag instead of
-	// the default tag. Closes the deliberate-leak path for tools like
-	// `curl --interface tun0` at the cost of routing every untracked
-	// connection through the direct outbound.
-	BypassUnknownUid bool `protobuf:"varint,16,opt,name=bypass_unknown_uid,json=bypassUnknownUid,proto3" json:"bypass_unknown_uid,omitempty"`
-	// tunnel_unknown_uid lets connections whose UID could not be resolved fall
-	// through to the default tunnel handler even when a bypass/allow list is
-	// active, instead of being dropped (or diverted via bypass_unknown_uid).
-	// Takes precedence over bypass_unknown_uid. Used by the app's "unknown UID
-	// router OFF" choice: ignore unknown UIDs and let them tunnel as normal.
-	TunnelUnknownUid bool `protobuf:"varint,17,opt,name=tunnel_unknown_uid,json=tunnelUnknownUid,proto3" json:"tunnel_unknown_uid,omitempty"`
-	// UIDs whose connections are dispatched with route_inbound_tag instead of
-	// the default TUN inbound tag. Independent of bypass_uids/allowed_uids: a
-	// route UID is stamped with route_inbound_tag regardless of the bypass /
-	// allowlist decision (except an excluded_uids kill still wins), so routing
-	// can steer those apps into a dedicated outbound (e.g. a standalone ByeDPI
-	// SOCKS outbound) while every other app follows the normal tunnel/bypass
-	// policy. Used by the app's per-app ByeDPI feature to divert selected apps
-	// through the DPI-bypass proxy on top of any app-routing mode.
-	RouteUids []uint32 `protobuf:"varint,18,rep,packed,name=route_uids,json=routeUids,proto3" json:"route_uids,omitempty"`
-	// Inbound tag the ip stack stamps on connections whose source UID matched
-	// route_uids. Empty disables the route redirect even when route_uids is
-	// populated.
-	RouteInboundTag string `protobuf:"bytes,19,opt,name=route_inbound_tag,json=routeInboundTag,proto3" json:"route_inbound_tag,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *Config) Reset() {
@@ -198,74 +138,11 @@ func (x *Config) GetAutoSystemWfpBlockLeak() []string {
 	return nil
 }
 
-func (x *Config) GetExcludedUids() []uint32 {
-	if x != nil {
-		return x.ExcludedUids
-	}
-	return nil
-}
-
-func (x *Config) GetAllowedUids() []uint32 {
-	if x != nil {
-		return x.AllowedUids
-	}
-	return nil
-}
-
-func (x *Config) GetUidLookupTimeoutMs() uint32 {
-	if x != nil {
-		return x.UidLookupTimeoutMs
-	}
-	return 0
-}
-
-func (x *Config) GetBypassUids() []uint32 {
-	if x != nil {
-		return x.BypassUids
-	}
-	return nil
-}
-
-func (x *Config) GetBypassInboundTag() string {
-	if x != nil {
-		return x.BypassInboundTag
-	}
-	return ""
-}
-
-func (x *Config) GetBypassUnknownUid() bool {
-	if x != nil {
-		return x.BypassUnknownUid
-	}
-	return false
-}
-
-func (x *Config) GetTunnelUnknownUid() bool {
-	if x != nil {
-		return x.TunnelUnknownUid
-	}
-	return false
-}
-
-func (x *Config) GetRouteUids() []uint32 {
-	if x != nil {
-		return x.RouteUids
-	}
-	return nil
-}
-
-func (x *Config) GetRouteInboundTag() string {
-	if x != nil {
-		return x.RouteInboundTag
-	}
-	return ""
-}
-
 var File_proxy_tun_config_proto protoreflect.FileDescriptor
 
 const file_proxy_tun_config_proto_rawDesc = "" +
 	"\n" +
-	"\x16proxy/tun/config.proto\x12\x0exray.proxy.tun\"\xeb\x05\n" +
+	"\x16proxy/tun/config.proto\x12\x0exray.proxy.tun\"\xfa\x02\n" +
 	"\x06Config\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
 	"\x03MTU\x18\x02 \x01(\rR\x03MTU\x12\x18\n" +
@@ -278,18 +155,7 @@ const file_proxy_tun_config_proto_rawDesc = "" +
 	"\x04desc\x18\b \x01(\tR\x04desc\x12:\n" +
 	"\x1aauto_system_dns_to_gateway\x18\t \x01(\bR\x16autoSystemDnsToGateway\x12:\n" +
 	"\x1aauto_system_wfp_block_leak\x18\n" +
-	" \x03(\tR\x16autoSystemWfpBlockLeak\x12#\n" +
-	"\rexcluded_uids\x18\v \x03(\rR\fexcludedUids\x12!\n" +
-	"\fallowed_uids\x18\f \x03(\rR\vallowedUids\x121\n" +
-	"\x15uid_lookup_timeout_ms\x18\r \x01(\rR\x12uidLookupTimeoutMs\x12\x1f\n" +
-	"\vbypass_uids\x18\x0e \x03(\rR\n" +
-	"bypassUids\x12,\n" +
-	"\x12bypass_inbound_tag\x18\x0f \x01(\tR\x10bypassInboundTag\x12,\n" +
-	"\x12bypass_unknown_uid\x18\x10 \x01(\bR\x10bypassUnknownUid\x12,\n" +
-	"\x12tunnel_unknown_uid\x18\x11 \x01(\bR\x10tunnelUnknownUid\x12\x1d\n" +
-	"\n" +
-	"route_uids\x18\x12 \x03(\rR\trouteUids\x12*\n" +
-	"\x11route_inbound_tag\x18\x13 \x01(\tR\x0frouteInboundTagBL\n" +
+	" \x03(\tR\x16autoSystemWfpBlockLeakBL\n" +
 	"\x12com.xray.proxy.tunP\x01Z#github.com/xtls/xray-core/proxy/tun\xaa\x02\x0eXray.Proxy.Tunb\x06proto3"
 
 var (

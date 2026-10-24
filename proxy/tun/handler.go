@@ -35,9 +35,6 @@ type Handler struct {
 	sniffingRequest session.SniffingRequest
 	uplinkCounter   stats.Counter
 	downlinkCounter stats.Counter
-	// uid gates the connections of the stack by their owner, nothing if the
-	// config sets no UID list
-	uid *uidFilter
 }
 
 type tunUDPStatsWriter struct {
@@ -168,12 +165,10 @@ func (t *Handler) Start() error {
 
 	errors.LogInfo(t.ctx, tunName, " created")
 
-	t.uid = newUIDFilter(t.config)
 	tunStackOptions := StackOptions{
 		Tun:         tunInterface,
 		MTU:         t.config.MTU,
 		IdleTimeout: t.policyManager.ForLevel(t.config.UserLevel).Timeouts.ConnectionIdle,
-		UID:         t.uid,
 	}
 	tunStack, err := NewStack(t.ctx, tunStackOptions, t)
 	if err != nil {
@@ -226,19 +221,9 @@ func (t *Handler) HandleConnection(conn net.Conn, destination net.Destination) {
 
 	source := net.DestinationFromAddr(conn.RemoteAddr())
 
-	// A connection that the stack has stamped goes to an inbound of its own, so
-	// that routing can send the apps that are to stay off the tunnel out
-	// directly, and the ones that were picked for it to an outbound of theirs
-	tag := t.tag
-	if t.uid != nil {
-		if stamped := t.uid.tagFor(source); stamped != "" {
-			tag = stamped
-		}
-	}
-
 	inbound := session.Inbound{
 		Name:          "tun",
-		Tag:           tag,
+		Tag:           t.tag,
 		CanSpliceCopy: 3,
 		Source:        source,
 		User: &protocol.MemoryUser{

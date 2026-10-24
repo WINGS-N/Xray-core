@@ -43,9 +43,6 @@ type StackOptions struct {
 	// has come a long way, so its checksums are looked at, nothing but that way limits the windows, and the
 	// segments of TCP carry the times of both sides if the other side has them
 	Remote bool
-	// UID gates the connections that the other side opens by the UID that owns them, for the per-app VPN of
-	// Android. Without it every one of them is taken
-	UID *uidFilter
 }
 
 // flow is what the packets of one connection have in common, src is the side of the system
@@ -72,8 +69,6 @@ type stack struct {
 	// handle is given every new connection that the other side opens. Without it those are refused
 	handle func(conn net.Conn, destination net.Destination)
 	udp    *udpConnectionHandler
-	// uid gates new connections by their owner, nothing if no list is set
-	uid *uidFilter
 	// addresses are what connections are opened from
 	addresses []netip.Addr
 	// bufs is what read reads a packet into if the tun is a segmenter, one after the other, the headers in the first.
@@ -108,7 +103,6 @@ func NewStack(ctx context.Context, options StackOptions, handler ConnectionHandl
 		stamps:    options.Remote,
 		conns:     make(map[flow]*tcpConn),
 		sockets:   make(map[netip.AddrPort]*udpSocket),
-		uid:       options.UID,
 	}
 	if t, ok := options.Tun.(segmenter); ok && t.Segments() {
 		s.segmenter = t
@@ -338,17 +332,6 @@ func (s *stack) handleTCP(p packet) {
 		return
 	}
 
-	if s.uid != nil {
-		decision := s.uid.decide(protoTCP, f.src, f.dst)
-		if decision.drop {
-			// The app sees a RST and goes on through an interface of its own,
-			// which is what being left out of the tunnel is to look like
-			s.refuse(f, seg)
-			return
-		}
-		s.uid.stamp(net.TCPDestination(net.IPAddress(f.src.Addr().AsSlice()), net.Port(f.src.Port())), decision.tag)
-	}
-
 	if s.opening.Load() >= tcpOpening {
 		return
 	}
@@ -413,17 +396,6 @@ func (s *stack) handleUDP(p packet) {
 	if size < udpHeaderSize || size > len(u) {
 		return
 	}
-	if s.uid != nil && s.handle != nil {
-		srcPort, dstPort := binary.BigEndian.Uint16(u), binary.BigEndian.Uint16(u[2:])
-		decision := s.uid.decide(protoUDP, netip.AddrPortFrom(p.src, srcPort), netip.AddrPortFrom(p.dst, dstPort))
-		if decision.drop {
-			// Nothing is answered, no ICMP either: the app waits in vain and
-			// falls back to an interface of its own
-			return
-		}
-		s.uid.stamp(net.UDPDestination(net.IPAddress(p.src.AsSlice()), net.Port(srcPort)), decision.tag)
-	}
-
 	var socket *udpSocket
 	if s.handle == nil {
 		// only for a port that was opened from here

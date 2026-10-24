@@ -14,17 +14,20 @@ message Config {
   uint32 user_level = 5;
   repeated string auto_system_routing_table = 6;
   string auto_outbounds_interface = 7;
+  string desc = 8;
+  bool auto_system_dns_to_gateway = 9;
+  repeated string auto_system_wfp_block_leak = 10;
   // UIDs that must not be tunneled. Connections arriving at the TUN with a
   // source UID present in this list are dropped before any dispatch.
-  // Used by Android VpnService to enforce per-app bypass at the gVisor level,
-  // since Android's addDisallowedApplication only steers routing and does not
-  // prevent excluded apps from binding to the TUN interface directly.
-  repeated uint32 excluded_uids = 8;
+  // Used by Android VpnService to enforce per-app bypass at the ip stack
+  // level, since Android's addDisallowedApplication only steers routing and
+  // does not prevent excluded apps from binding to the TUN interface directly.
+  repeated uint32 excluded_uids = 11;
   // When non-empty, only connections whose source UID appears in this list
   // are allowed; everyone else is dropped. Mirrors Android's allowlist
-  // VpnService.Builder mode and acts as the secondary filter at the gVisor
+  // VpnService.Builder mode and acts as the secondary filter at the ip stack
   // level. excluded_uids still takes precedence over allowed_uids.
-  repeated uint32 allowed_uids = 9;
+  repeated uint32 allowed_uids = 12;
   // Grace window in milliseconds for retrying the /proc/net UID lookup when
   // the first probe returns no match. Race: apps that open many sockets in
   // rapid succession (e.g. Tor pulling several guards at once) send the SYN
@@ -34,19 +37,19 @@ message Config {
   // every ~5 ms until the UID resolves or the timeout elapses, then applies
   // the filter on the final result. 0 disables retries entirely; the
   // initial lookup is always performed.
-  uint32 uid_lookup_timeout_ms = 10;
+  uint32 uid_lookup_timeout_ms = 13;
   // UIDs whose connections are dispatched with bypass_inbound_tag instead of
   // the default TUN inbound tag, so routing can divert them to a freedom /
   // direct outbound and keep them off the VPN. Used by Android non-root path:
   // VpnService runs without addDisallowedApplication so all apps' traffic is
   // visible to ConnectivityManager.getConnectionOwnerUid, then bypass UIDs
-  // get silently redirected to the underlying network at gVisor level,
+  // get silently redirected to the underlying network at ip stack level,
   // transparently to the app, instead of being dropped outright.
-  repeated uint32 bypass_uids = 11;
-  // Inbound tag the gVisor stack stamps on connections whose source UID
-  // matched bypass_uids. Empty disables the bypass redirect, matching default
+  repeated uint32 bypass_uids = 14;
+  // Inbound tag the ip stack stamps on connections whose source UID matched
+  // bypass_uids. Empty disables the bypass redirect, matching default
   // behaviour even when bypass_uids is populated (diagnostic-only mode).
-  string bypass_inbound_tag = 12;
+  string bypass_inbound_tag = 15;
   // When true and bypass_inbound_tag is non-empty, connections whose source
   // UID cannot be resolved (typically because the app bound the socket
   // directly to the TUN interface via SO_BINDTODEVICE or an explicit source
@@ -55,13 +58,13 @@ message Config {
   // the default tag. Closes the deliberate-leak path for tools like
   // `curl --interface tun0` at the cost of routing every untracked
   // connection through the direct outbound.
-  bool bypass_unknown_uid = 13;
+  bool bypass_unknown_uid = 16;
   // tunnel_unknown_uid lets connections whose UID could not be resolved fall
   // through to the default tunnel handler even when a bypass/allow list is
   // active, instead of being dropped (or diverted via bypass_unknown_uid).
   // Takes precedence over bypass_unknown_uid. Used by the app's "unknown UID
   // router OFF" choice: ignore unknown UIDs and let them tunnel as normal.
-  bool tunnel_unknown_uid = 14;
+  bool tunnel_unknown_uid = 17;
   // UIDs whose connections are dispatched with route_inbound_tag instead of
   // the default TUN inbound tag. Independent of bypass_uids/allowed_uids: a
   // route UID is stamped with route_inbound_tag regardless of the bypass /
@@ -70,9 +73,9 @@ message Config {
   // SOCKS outbound) while every other app follows the normal tunnel/bypass
   // policy. Used by the app's per-app ByeDPI feature to divert selected apps
   // through the DPI-bypass proxy on top of any app-routing mode.
-  repeated uint32 route_uids = 15;
-  // Inbound tag the gVisor stack stamps on connections whose source UID
-  // matched route_uids. Empty disables the route redirect even when route_uids
-  // is populated.
-  string route_inbound_tag = 16;
+  repeated uint32 route_uids = 18;
+  // Inbound tag the ip stack stamps on connections whose source UID matched
+  // route_uids. Empty disables the route redirect even when route_uids is
+  // populated.
+  string route_inbound_tag = 19;
 }
